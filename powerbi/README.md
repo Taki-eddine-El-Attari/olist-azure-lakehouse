@@ -10,6 +10,11 @@ winget install -e --id 9NTXR16HNW1T --source msstore
 
 Ou à la main : ouvrir le **Microsoft Store**, chercher « Power BI Desktop » et cliquer sur *Obtenir*.
 
+**Si le Store échoue avec `0x80070422`** (services « Microsoft Store Install Service » / « Windows Update » désactivés, c'est le cas sur ce poste) : utiliser l'**installateur autonome**, qui n'a pas besoin du Store.
+1. Ouvrir https://www.microsoft.com/download/details.aspx?id=58494 (Microsoft Download Center, page « Microsoft Power BI Desktop »).
+2. *Download* → choisir `PBIDesktopSetup_x64.exe`.
+3. Lancer le fichier et suivre l'assistant. Cette version ne se met pas à jour toute seule : la retélécharger de temps en temps.
+
 - Pas besoin de compte pour travailler en local : au premier lancement, fermer la fenêtre de connexion.
 - Le compte (et une licence pour partager) ne sert qu'à publier sur Power BI Service, ce qui est hors du livrable minimal (AZURE_SETUP.md étape 10).
 - L'interface suit la langue de Windows. Les noms de menus ci-dessous sont en français.
