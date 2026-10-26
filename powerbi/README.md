@@ -37,10 +37,13 @@ Source : `data/powerbi/*.parquet`, produits par `python -m olist.gold`. Power BI
    Aucune relation entre les deux faits.
 4. **Table de dates** : sélectionner `dim_date` → *Outils de table → Marquer comme table de dates* → colonne `date`.
 5. **Mesures** : copier celles de [measures.dax](measures.dax).
-6. **Page 1 « Les retards détruisent la satisfaction »** :
-   - 3 cartes : `Late Rate %`, `Avg Review Late`, `Avg Review On Time` ;
-   - histogramme : `Late Rate %` par `dim_date[year]` puis `month` ;
-   - barres : `Late Rate %` par `dim_customer[state]`.
-7. Enregistrer sous `powerbi/olist.pbix`.
+6. **Page 1 « Les retards détruisent la satisfaction »** (vue *Rapport*, la première icône à gauche). Principe de Power BI : on clique sur un type de visuel dans le volet *Visualisations*, un cadre vide apparaît sur la page, puis on glisse des champs du volet *Données* dans les zones du visuel (*Valeurs*, *Axe X*…).
+   1. **Formater les mesures** (une fois) : dans *Données*, cliquer sur `Late Rate %` → ruban *Outils de mesure* → *Format* = *Pourcentage*, 2 décimales. Pour `Avg Review Late` et `Avg Review On Time` : *Nombre décimal*, 2 décimales.
+   2. **Titre** : *Insérer → Zone de texte* → écrire « Les retards détruisent la satisfaction » → le placer en haut.
+   3. **3 cartes** : cliquer sur la page vide (pour ne rien sélectionner) → *Visualisations → Carte* (l'icône « 123 ») → glisser `Late Rate %` dans *Champs*. Recommencer pour `Avg Review Late` et `Avg Review On Time`. Aligner les 3 cartes sous le titre.
+   4. **Retard par mois** : page vide → *Histogramme groupé* (barres verticales) → `dim_date[year]` puis `dim_date[month]` dans *Axe X* → `Late Rate %` dans *Axe Y*. Le visuel affiche d'abord les années : cliquer sur l'icône **double flèche vers le bas** (« Développer tous les niveaux ») en haut du visuel pour voir année + mois.
+   5. **Retard par État** : page vide → *Graphique à barres groupées* (barres horizontales) → `dim_customer[state]` dans *Axe Y* → `Late Rate %` dans *Axe X* → *…* en haut du visuel → *Trier l'axe* → `Late Rate %`, décroissant.
+   6. **Essayer l'interaction** : cliquer sur une barre d'État filtre les autres visuels de la page. C'est l'effet des relations du modèle.
+7. Enregistrer sous `powerbi/olist.pbix` (*Fichier → Enregistrer sous*).
 
 **Contrôle :** les cartes doivent afficher **6,77 %**, **2,27** et **4,29**, comme `sql/checks.sql`. Un autre chiffre veut dire qu'une relation ou un filtre est faux.
