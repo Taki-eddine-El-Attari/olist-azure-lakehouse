@@ -50,7 +50,7 @@ Source : dataset Kaggle « Brazilian E-Commerce Public Dataset by Olist ». **Le
 | olist_orders_dataset | 99 441 | order_id | commandes + dates (achat, approbation, expédition, livraison, estimée) |
 | olist_order_items_dataset | 112 650 | order_id + order_item_id | lignes de commande, prix, fret, vendeur |
 | olist_order_payments_dataset | 103 886 | order_id + payment_sequential | paiements (type, échéances) |
-| olist_order_reviews_dataset | 99 224 | review_id (pas unique !) | note 1-5, commentaire PT (40 977) |
+| olist_order_reviews_dataset | 99 224 | review_id + order_id (review_id seul pas unique !) | note 1-5, commentaire PT (40 977) |
 | olist_customers_dataset | 99 441 | customer_id | customer_unique_id, ville, état |
 | olist_products_dataset | 32 951 | product_id | catégorie PT, poids, dimensions |
 | olist_sellers_dataset | 3 095 | seller_id | ville, état |
@@ -61,7 +61,7 @@ Source : dataset Kaggle « Brazilian E-Commerce Public Dataset by Olist ». **Le
 - 2 965 commandes sans date de livraison (annulées, en cours, indisponibles).
 - 610 produits sans catégorie → `unknown`.
 - 2 catégories absentes de la traduction (`pc_gamer`, `portateis_cozinha_e_preparadores_de_alimentos`) → traduction manuelle.
-- 814 `review_id` en double → dédoublonner (garder la plus récente par `order_id`).
+- 789 `review_id` rattachés à plusieurs commandes (814 lignes) : même avis, clé réelle `(review_id, order_id)`. 547 commandes ont plusieurs avis → garder le plus récent par `order_id`.
 - Geolocation : plusieurs lat/lng par préfixe → agréger (médiane) par `zip_code_prefix`.
 - `customer_id` ≠ client réel : le vrai client est `customer_unique_id`.
 
@@ -347,4 +347,5 @@ Budget estimé total : **15 à 35 USD** sur 100 USD *(estimation non vérifiée,
 | Date | Phase | Fait | Chiffres / coût | Prochaine étape |
 |---|---|---|---|---|
 | 2026-10-26 | 0 | Structure du repo, git init, image Docker (DBR 18 LTS ML), test Spark+Delta | `pytest` : 1 passed ; 0 USD | Azure CLI + étapes 0-3, commit, push GitHub |
-| 2026-10-26 | 0 | Benchmark de 9 repos, décisions ADR-003 ; Azure CLI 2.91.0, login OK après `az login --tenant` (MFA) ; abonnement « Azure for Students » Enabled ; 7 providers enregistrés ; quotas switzerlandnorth vérifiés (6 régionaux, DSv2 4, DSv3 4) ; repo poussé sur GitHub ; budget mensuel 20 USD créé dans le portail (alertes 50/80/100 %), mais pas visible par l'API au niveau abonnement (périmètre à confirmer) ; `pytest` : 1 passed. **Phase 0 terminée.** | 0 USD | Phase 1 : EDA + Bronze en local |
+| 2026-10-26 | 0 | Benchmark de 9 repos, décisions ADR-003 ; Azure CLI 2.91.0, login OK après `az login --tenant` (MFA) ; abonnement « Azure for Students » Enabled ; 7 providers enregistrés ; quotas switzerlandnorth vérifiés (6 régionaux, DSv2 4, DSv3 4) ; repo poussé sur GitHub ; budget mensuel 20 USD créé dans le portail (alertes 50/80/100 %), visible dans Cost Management → Budgets ; `pytest` : 1 passed. **Phase 0 terminée.** | 0 USD | Phase 1 : EDA + Bronze en local |
+| 2026-10-26 | 1 | `bronze.py` (schémas explicites, multiLine, FAILFAST), `eda.py`, tests Bronze ; défauts mesurés dans ADR-004 | 9 tables Bronze = comptes CSV ; retard 8,11 % ; notes 2,57 / 4,29 ; `pytest` : 13 passed ; 0 USD | Phase 2 : Silver + qualité |

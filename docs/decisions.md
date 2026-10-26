@@ -23,3 +23,34 @@ L'identité managée d'ADF n'est pas l'utilisateur assigné au cluster. Plan : t
 4. **Ajouts au cahier des charges** (tous à faible coût) : lecture `multiLine` des avis + test des comptes (phase 1), contrôle paiements sans article + table `quarantine` (phase 2), contrôles Gold qui font échouer le run (phase 3), « Known gaps » et coûts réels dans le README (phase 9), serverless interdit (risques).
 
 **Écarté pour l'instant.** `TIMESTAMP_NTZ` : la session est déjà figée en UTC dans `spark.py` (testé), et la lecture de `TIMESTAMP_NTZ` par le connecteur Power BI n'est pas vérifiée. Un test de phase 1 vérifie qu'aucune date ne se décale. À revoir si ce test échoue.
+
+## ADR-004 — Bronze et défauts mesurés en phase 1 (2026-10-26)
+
+**Bronze.** `src/olist/bronze.py` lit les 9 CSV avec un schéma explicite (noms de colonnes de la source conservés, codes postaux en `STRING` pour garder les zéros, montants en `DECIMAL(10,2)`, dates en `TIMESTAMP` sous session UTC), en `multiLine` et en `FAILFAST` : une valeur hors schéma arrête le run au lieu de devenir `null`. Chaque table reçoit `_ingested_at` et `_source_file` (`_metadata.file_path`, qui marche aussi sous Unity Catalog). Écriture Delta en `overwrite` : la source est un instantané complet. Ingestion locale : ~47 s dans Docker.
+
+**Piège de test découvert.** `count()` sur un CSV ne parse pas les colonnes, donc `FAILFAST` ne se déclenche pas. Le test utilise `collect()`. L'écriture Delta parse tout, donc l'ingestion elle-même est bien protégée.
+
+**Défauts mesurés** (`python -m olist.eda` sur Bronze ; comptes CSV recomptés indépendamment avec le module `csv`) :
+
+| Constat | Valeur | Conséquence (phase 2) |
+|---|---|---|
+| Commandes sans date de livraison client | 2 965 (dont 8 au statut `delivered`) | `delivery_status` ; exclure de la cible ML |
+| Commandes sans date d'approbation | 160 | autoriser `null` |
+| Livrées avant achat ou approbation | 61 | contrôle DQ (règle de dates), en quarantaine |
+| Remises au transporteur avant approbation | 1 359 | contrôle DQ en avertissement, pas bloquant (trop fréquent pour être une erreur de saisie isolée) |
+| Produits sans catégorie | 610 | `unknown` |
+| Catégories absentes de la traduction | `pc_gamer`, `portateis_cozinha_e_preparadores_de_alimentos` | traduction manuelle |
+| Produits sans poids ni dimensions | 2 | `null`, pas d'imputation en Silver |
+| `review_id` présents plusieurs fois | 789 identifiants, 814 lignes en trop | **la clé est `(review_id, order_id)`** : un même avis (même note, même texte) est rattaché à plusieurs commandes. Ne pas dédoublonner sur `review_id` |
+| Commandes avec plusieurs avis | 547 | garder l'avis le plus récent par `order_id` |
+| Commandes sans avis | 768 | `review_score` nullable dans `fact_orders` |
+| Geolocation | 1 000 163 lignes pour 19 015 préfixes | médiane lat/lng par préfixe |
+| Préfixes clients absents de geolocation | 157 | distance client-vendeur nullable (feature ML) |
+| `customer_id` / `customer_unique_id` distincts | 99 441 / 96 096 | `dim_customer` sur `customer_unique_id` |
+| Commandes sans aucun article | 775 (toutes payées) | contrôle DQ « payée sans article » |
+| Paiements − (prix + fret) | 165 318,88 BRL | à expliquer en phase 2 (commandes sans article, intérêts des échéances) |
+| Paiements à 0 | 9 | à examiner (bons d'achat ?) |
+| Taux de retard (livrées) | 8,11 % | confirme l'histoire (~8,1 %) |
+| Note moyenne retard / à l'heure | 2,57 / 4,29 | confirme l'histoire |
+
+Écarts avec le benchmark : BDhabekar annonce 622 commandes payées sans article et un écart de 122 510 BRL ; nous mesurons 775 et 165 318,88 BRL sur les données brutes. Leur filtre exact n'est pas connu (README seulement).
