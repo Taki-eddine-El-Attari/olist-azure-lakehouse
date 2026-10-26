@@ -122,7 +122,7 @@ Points de modélisation à savoir défendre :
 
 ## 6. Structure du repo
 
-Nom proposé : `olist-azure-lakehouse` (public sur GitHub à la fin).
+**Nom retenu :** repo GitHub `olist-azure-lakehouse` (public à la fin). Nom affiché sur le CV et le portfolio : **Olist Lakehouse — Pipeline Data & ML sur Azure**.
 
 ```
 olist-azure-lakehouse/
@@ -203,19 +203,22 @@ Durée indicative : **5 semaines** à ~10 h/semaine. Chaque phase = une ou plusi
 ### Phase 1 — Exploration et Bronze en local (1-2 jours)
 - Notebook/script d'EDA : volumes, nulls, doublons, distributions, vérifier les défauts du §3.
 - `bronze.py` : lire chaque CSV avec un **schéma explicite**, ajouter `_ingested_at`, `_source_file`, écrire en Delta dans `data/lake/bronze/`.
+- Les commentaires d'avis contiennent des retours à la ligne : lire avec `multiLine=True`, `quote='"'`, `escape='"'` (99 224 avis, pas 104 719 lignes physiques).
+- Dates : garder `TimestampType` + session en UTC (déjà dans `spark.py`) ; un test vérifie qu'une date relue en Delta est identique à la chaîne du CSV.
 
-**DoD :** 9 tables Bronze Delta ; comptes de lignes = comptes des CSV ; `docs/decisions.md` contient les défauts trouvés.
+**DoD :** 9 tables Bronze Delta ; un **test pytest** vérifie que comptes Bronze = comptes des CSV (dont reviews = 99 224, traduction = 71) ; `docs/decisions.md` contient les défauts trouvés.
 
 ### Phase 2 — Silver en local (2-3 jours)
 - Une fonction pure par table : typage des dates, trim/lower des villes, dédoublonnage des reviews, catégorie `unknown` + traduction manquante ajoutée, geolocation agrégée par préfixe, `delivery_status` (`delivered` / `not_delivered`).
-- `quality.py` : contrôles (unicité des clés, non-null des clés, intégrité référentielle items→orders/products/sellers, dates cohérentes `purchase ≤ approved ≤ delivered`, montants ≥ 0) → table `dq_results`.
+- `quality.py` : contrôles (unicité des clés, non-null des clés, intégrité référentielle items→orders/products/sellers, dates cohérentes `purchase ≤ approved ≤ delivered`, montants ≥ 0, commandes payées sans aucun article) → table `dq_results`.
+- Les lignes invalides vont dans une table `quarantine` (ligne + règle violée) au lieu d'être supprimées en silence.
 - Tests pytest sur chaque fonction de nettoyage avec 5-10 lignes d'exemple.
 
 **DoD :** Silver écrit ; tous les tests passent ; `dq_results` sans échec bloquant ; les règles de nettoyage sont listées dans `docs/decisions.md`.
 
 ### Phase 3 — Gold + maquette Power BI en local (3-4 jours)
 - `gold.py` : dims + faits du §5.
-- Vérifications SQL (`sql/checks.sql`) : somme des prix Gold = somme Silver ; taux de retard ≈ 8,1 % ; notes 2,57 / 4,29.
+- Vérifications SQL (`sql/checks.sql`) : somme des prix Gold = somme Silver ; taux de retard ≈ 8,1 % ; notes 2,57 / 4,29. Un contrôle en échec **fait échouer le run** (exception), il ne se contente pas d'afficher.
 - Power BI Desktop sur les fichiers Gold locaux : relations en étoile, mesures DAX de base.
 
 **DoD :** les chiffres de l'histoire sont retrouvés ; le modèle Power BI a des relations 1-* propres (pas de bidirectionnel) ; 1 page de dashboard fonctionnelle.
@@ -281,7 +284,7 @@ Captures à faire **avant** de supprimer quoi que ce soit :
 - [ ] 4 pages Power BI
 - [ ] Analyse de coût (Cost analysis ou crédit restant)
 
-Puis : README final (schéma, captures, résultats, « ce que je ferais en production »), nettoyage selon AZURE_SETUP.md étape 12.
+Puis : README final (schéma, captures, résultats, coûts réels, « Known gaps », « ce que je ferais en production / à 100× le volume »), nettoyage selon AZURE_SETUP.md étape 12.
 
 **DoD :** README lisible en 2 minutes par un recruteur ; plus aucune ressource facturable active.
 
@@ -292,6 +295,7 @@ Puis : README final (schéma, captures, résultats, « ce que je ferais en produ
 | Risque | Probabilité | Impact | Parade |
 |---|---|---|---|
 | Cluster oublié allumé | moyenne | perte de crédit | auto-stop 15 min + Terminate manuel + suivi du crédit à chaque session |
+| Calcul **serverless** Databricks utilisé par défaut | moyenne | ~35 USD en 3 jours constatés sur un autre projet Students | serverless interdit : notebooks et jobs toujours attachés au cluster single node (docs/benchmark.md, leçon 5) |
 | Quota vCPU (6 / DSv2 4) | élevée si multi-nœud | cluster ne démarre pas | single node DS3_v2, ADF sur cluster existant, pas de SQL Warehouse |
 | ADF (identité managée) refusé sur le cluster *Single user* | moyenne *(non vérifié)* | pipeline ADF en échec | fallback *Access token* Databricks dans Key Vault (AZURE_SETUP.md étape 9) |
 | Unity Catalog indisponible | faible *(non vérifié)* | accès stockage | plan B secret scope (AZURE_SETUP.md étape 7) |
@@ -307,7 +311,7 @@ Budget estimé total : **15 à 35 USD** sur 100 USD *(estimation non vérifiée,
 ## 10. Valorisation CV et entretien
 
 **Ligne de projet pour le CV (à ajuster avec tes vrais chiffres) :**
-> **Olist Lakehouse sur Azure** — Pipeline de données de bout en bout sur 100k commandes e-commerce : ingestion orchestrée par Azure Data Factory dans ADLS Gen2, architecture médaillon (Bronze/Silver/Gold) en PySpark/Delta Lake sur Azure Databricks, schéma en étoile et dashboard Power BI (DAX). Modèle de prédiction des retards de livraison (LightGBM, PR-AUC X vs baseline Y) tracé avec MLflow et scoré en batch. Identités managées, tests pytest, contrôles qualité, CI GitHub Actions, coût total < Z USD.
+> **Olist Lakehouse — Pipeline Data & ML sur Azure** — Pipeline de données de bout en bout sur 100k commandes e-commerce : ingestion orchestrée par Azure Data Factory dans ADLS Gen2, architecture médaillon (Bronze/Silver/Gold) en PySpark/Delta Lake sur Azure Databricks, schéma en étoile et dashboard Power BI (DAX). Modèle de prédiction des retards de livraison (LightGBM, PR-AUC X vs baseline Y) tracé avec MLflow et scoré en batch. Identités managées, tests pytest, contrôles qualité, CI GitHub Actions, coût total < Z USD.
 
 **Mots-clés couverts :** Azure, ADLS Gen2, Data Factory, Databricks, PySpark, Delta Lake, Unity Catalog, ETL/ELT, architecture médaillon, modélisation dimensionnelle, SQL, Power BI, DAX, MLflow, LightGBM, CI/CD, GitHub Actions.
 
@@ -343,3 +347,4 @@ Budget estimé total : **15 à 35 USD** sur 100 USD *(estimation non vérifiée,
 | Date | Phase | Fait | Chiffres / coût | Prochaine étape |
 |---|---|---|---|---|
 | 2026-10-26 | 0 | Structure du repo, git init, image Docker (DBR 18 LTS ML), test Spark+Delta | `pytest` : 1 passed ; 0 USD | Azure CLI + étapes 0-3, commit, push GitHub |
+| 2026-10-26 | 0 | Benchmark de 9 repos, décisions ADR-003 ; Azure CLI 2.91.0, login OK après `az login --tenant` (MFA) ; abonnement « Azure for Students » Enabled ; 7 providers enregistrés ; quotas switzerlandnorth vérifiés (6 régionaux, DSv2 4, DSv3 4) ; repo poussé sur GitHub | 0 USD | Budget/suivi du crédit dans le portail, puis phase 1 |

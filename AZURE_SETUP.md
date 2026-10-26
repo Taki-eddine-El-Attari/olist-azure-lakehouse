@@ -39,6 +39,8 @@ az account set --subscription "<nom ou id de l'abonnement Azure for Students>"
 az account show -o table
 ```
 
+> Si `az login` répond `AADSTS50076` puis « No subscriptions found » : Azure exige la MFA pour la gestion des ressources, et le premier login n'a pas fait passer l'étape MFA. Relancer en ciblant le tenant affiché dans l'erreur : `az login --tenant <TENANT_ID>`. Si la fenêtre Windows de choix de compte bloque : `az config set core.enable_broker_on_windows=false`, puis relancer (connexion par le navigateur). Plan B sans installation : **Cloud Shell** dans le portail (déjà connecté).
+
 - [ ] Ajouter les extensions CLI utilisées plus bas :
 
 ```bash
@@ -318,4 +320,5 @@ az group delete --name $RG --yes --no-wait
 | `RequestDisallowedByPolicy` | Région non autorisée | Toujours `switzerlandnorth` |
 | `AuthorizationPermissionMismatch` sur le stockage | Rôle de données manquant ou pas encore propagé | `Storage Blob Data Contributor` + attendre 2-5 min |
 | `MissingSubscriptionRegistration` | Provider non enregistré | Étape 2 |
+| `AADSTS50076` + « No subscriptions found » à `az login` | MFA exigée, non faite au login | `az login --tenant <TENANT_ID>` (étape 0) |
 | Crédit qui baisse sans travailler | Cluster allumé, trigger ADF actif | Terminate + désactiver trigger |
