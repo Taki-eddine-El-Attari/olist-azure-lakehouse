@@ -78,3 +78,24 @@ L'identité managée d'ADF n'est pas l'utilisateur assigné au cluster. Plan : t
 **Contrôles** (`src/olist/quality.py`, résultats ajoutés à `gold/dq_results` à chaque run) : 16 contrôles `error` (clés uniques et non nulles, intégrité référentielle, catégories remplies, livraison après achat) qui font échouer le run, et 7 `warn` qui comptent les défauts connus sans bloquer.
 
 **Résultat du premier run complet** : 16/16 `error` passent. Warnings : livrée avant approbation 61, transporteur avant achat 166, payées sans article 775, commande sans paiement 1, paiements à 0 9, clients dont le préfixe n'a pas de géolocalisation 279 (157 préfixes), quarantaine 42. Silver : 98 673 avis (= 99 441 commandes − 768 sans avis), 19 010 préfixes (5 préfixes n'avaient que des points hors du Brésil).
+
+## ADR-006 — Gold : définition du retard et choix du modèle en étoile (2026-10-26)
+
+**Retard au jour près.** La date estimée est toujours à minuit (0 exception sur 99 441). Comparer les horodatages compte donc en retard toute commande livrée **le jour promis** après minuit : 1 292 commandes, dont la note moyenne est 4,03, proche de celle des commandes à l'heure. Décision (validée) : `is_late = date(livraison) > date(estimation)`.
+
+| Définition | Taux de retard | Note en retard / à l'heure |
+|---|---|---|
+| Horodatage (chiffre courant dans les autres projets) | 8,11 % | 2,57 / 4,29 |
+| **Jour (retenue)** | **6,77 %** | **2,27 / 4,29** |
+
+Conséquences : `sql/checks.sql`, `measures.dax` et la cible ML (phase 7) utilisent cette définition. L'histoire est plus forte (2,27 au lieu de 2,57), et c'est un argument d'entretien : le chiffre de 8,1 % surcompte.
+
+**Autres choix Gold** (`src/olist/gold.py`) :
+- Clés de substitution = rang dans l'ordre de la clé naturelle (`row_number`) : stables d'une reconstruction à l'autre sur les mêmes données. Limite : fenêtre globale sur une seule partition, à remplacer par `xxhash64` au-delà de quelques millions de lignes.
+- `dim_customer` sur `customer_unique_id` (96 096 lignes), avec l'adresse de la **dernière** commande du client.
+- `dim_date` couvre des années entières (2016-2018, 1 096 jours) pour l'intelligence temporelle de Power BI. `day_of_week` : 1 = lundi.
+- `fact_orders` : `delivery_status` ajouté (repris de Silver) ; montants à 0 et non `null` pour les commandes sans article ni paiement ; `payment_type_main` = le type du plus gros paiement ; `is_late` et `is_negative_review` restent `null` quand il n'y a pas de livraison ou pas d'avis.
+- Pas de membre « inconnu » (clé −1) dans les dimensions : les contrôles Silver garantissent toutes les clés étrangères, et `checks.sql` vérifie qu'aucune clé de fait n'est nulle.
+- Export pour Power BI : un fichier Parquet par table dans `data/powerbi/`, parce que Power BI Desktop n'a pas de lecteur intégré pour un dossier Delta local *(d'après mes connaissances, non vérifié dans ta version de Power BI)*. Lire directement les fichiers Parquet d'une table Delta serait faux : après un `overwrite`, les anciens fichiers restent dans le dossier jusqu'au `VACUUM`.
+
+**Résultat du run complet :** 11/11 contrôles Gold passent (volumes, sommes de prix et de paiements identiques à Silver, aucune clé nulle, 6,77 %, 2,27, 4,29).

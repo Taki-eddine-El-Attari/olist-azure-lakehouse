@@ -1,0 +1,32 @@
+// Olist Lakehouse — DAX measures (text copy of the measures in olist.pbix, readable in Git).
+// Create them in the fact_orders table (Modeling > New measure), one by one.
+// Late = delivered after the promised day (ADR-006). Same filters as sql/checks.sql,
+// so Power BI must show 6.77 %, 2.27 and 4.29.
+
+Total Revenue = SUM ( fact_order_items[price] )
+
+Orders = COUNTROWS ( fact_orders )
+
+// Average basket: only orders that have items (775 paid orders were never fulfilled).
+AOV = DIVIDE ( [Total Revenue], CALCULATE ( [Orders], fact_orders[nb_items] > 0 ) )
+
+Late Rate % =
+DIVIDE (
+    CALCULATE ( [Orders], fact_orders[order_status] = "delivered", fact_orders[is_late] = TRUE () ),
+    CALCULATE ( [Orders], fact_orders[order_status] = "delivered", NOT ISBLANK ( fact_orders[is_late] ) )
+)
+
+Avg Review = AVERAGE ( fact_orders[review_score] )
+
+Avg Review Late =
+CALCULATE ( [Avg Review], fact_orders[order_status] = "delivered", fact_orders[is_late] = TRUE () )
+
+Avg Review On Time =
+CALCULATE ( [Avg Review], fact_orders[order_status] = "delivered", fact_orders[is_late] = FALSE () )
+
+// Needs dim_date marked as date table (Table tools > Mark as date table > column [date]).
+Revenue YoY % =
+VAR PreviousYear = CALCULATE ( [Total Revenue], SAMEPERIODLASTYEAR ( dim_date[date] ) )
+RETURN DIVIDE ( [Total Revenue] - PreviousYear, PreviousYear )
+
+// Phase 7: Predicted Late Orders, once fact_late_predictions exists.

@@ -16,7 +16,7 @@
 4. Je maîtrise les coûts et la sécurité (identités managées, pas de secret en clair, arrêt des ressources).
 
 **Question métier centrale (le fil rouge) :**
-> « Les retards de livraison détruisent la satisfaction client (note 2,57/5 contre 4,29/5). Où, pourquoi, et peut-on prédire un retard dès la commande ? »
+> « Les retards de livraison détruisent la satisfaction client (note 2,27/5 contre 4,29/5). Où, pourquoi, et peut-on prédire un retard dès la commande ? »
 
 ---
 
@@ -66,8 +66,8 @@ Source : dataset Kaggle « Brazilian E-Commerce Public Dataset by Olist ». **Le
 - `customer_id` ≠ client réel : le vrai client est `customer_unique_id`.
 
 **Faits à retrouver dans tes propres résultats (tests de non-régression de l'histoire) :**
-- ~8,1 % des commandes livrées arrivent après la date estimée.
-- Note moyenne ≈ 2,57 en retard vs ≈ 4,29 à l'heure.
+- 6,77 % des commandes livrées arrivent après le **jour** promis (ADR-006). Le chiffre de 8,1 % qui circule compte aussi en retard les 1 292 commandes livrées le jour promis, parce que la date estimée est à minuit.
+- Note moyenne 2,27 en retard vs 4,29 à l'heure (2,57 vs 4,29 avec la définition à 8,1 %).
 
 ---
 
@@ -107,7 +107,7 @@ Diagramme : [docs/star_schema.svg](docs/star_schema.svg).
 | Table | Grain | Colonnes principales |
 |---|---|---|
 | `fact_order_items` | 1 ligne de commande | order_id, order_item_id, product_key, seller_key, customer_key, purchase_date_key, price, freight_value |
-| `fact_orders` | 1 commande | order_id, customer_key, purchase_date_key, order_status, nb_items, order_value, freight_total, payment_total, payment_type_main, installments_max, delivery_days, estimated_days, delay_days, **is_late**, review_score, is_negative_review |
+| `fact_orders` | 1 commande | order_id, customer_key, purchase_date_key, order_status, delivery_status, nb_items, order_value, freight_total, payment_total, payment_type_main, installments_max, delivery_days, estimated_days, delay_days, **is_late**, review_score, is_negative_review |
 | `dim_customer` | 1 customer_unique_id | customer_key, customer_unique_id, city, state, lat, lng |
 | `dim_seller` | 1 vendeur | seller_key, seller_id, city, state, lat, lng |
 | `dim_product` | 1 produit | product_key, product_id, category_pt, category_en, weight_g, volume_cm3 |
@@ -220,7 +220,7 @@ Durée indicative : **5 semaines** à ~10 h/semaine. Chaque phase = une ou plusi
 
 ### Phase 3 — Gold + maquette Power BI en local (3-4 jours)
 - `gold.py` : dims + faits du §5.
-- Vérifications SQL (`sql/checks.sql`) : somme des prix Gold = somme Silver ; taux de retard ≈ 8,1 % ; notes 2,57 / 4,29. Un contrôle en échec **fait échouer le run** (exception), il ne se contente pas d'afficher.
+- Vérifications SQL (`sql/checks.sql`) : somme des prix Gold = somme Silver ; taux de retard 6,77 % ; notes 2,27 / 4,29. Un contrôle en échec **fait échouer le run** (exception), il ne se contente pas d'afficher.
 - Power BI Desktop sur les fichiers Gold locaux : relations en étoile, mesures DAX de base.
 
 **DoD :** les chiffres de l'histoire sont retrouvés ; le modèle Power BI a des relations 1-* propres (pas de bidirectionnel) ; 1 page de dashboard fonctionnelle.
@@ -244,7 +244,7 @@ Durée indicative : **5 semaines** à ~10 h/semaine. Chaque phase = une ou plusi
 Connexion au cluster en mode Import (AZURE_SETUP.md étape 10). 4 pages :
 1. **Vue d'ensemble** : CA, commandes, panier moyen, évolution mensuelle, carte par état.
 2. **Logistique** : taux de retard par état client/vendeur, par catégorie, par mois ; délai réel vs estimé.
-3. **Satisfaction** : note moyenne vs retard (le chiffre choc 2,57 vs 4,29), part d'avis négatifs.
+3. **Satisfaction** : note moyenne vs retard (le chiffre choc 2,27 vs 4,29), part d'avis négatifs.
 4. **Prédictions** : commandes à risque, distribution des probabilités, performance du modèle (rappel/précision sur la période de test). *Dépend de la phase 7 : on la finalise après le ML.*
 
 Mesures DAX minimales (à copier dans `powerbi/measures.dax`) : `Total Revenue`, `Orders`, `AOV`, `Late Rate %`, `Avg Review`, `Avg Review Late`, `Avg Review On Time`, `Revenue YoY %` (avec `dim_date` marquée comme table de dates), `Predicted Late Orders`.
@@ -252,7 +252,7 @@ Mesures DAX minimales (à copier dans `powerbi/measures.dax`) : `Total Revenue`,
 **DoD :** `.pbix` + export PDF + 4 captures dans `powerbi/screenshots/` ; chaque page répond à une question écrite en titre.
 
 ### Phase 7 — Machine Learning + MLflow (4-5 jours)
-**Cible :** `is_late = delivered_date > estimated_date`, sur les commandes livrées.
+**Cible :** `is_late = date(delivered) > date(estimated)` (au jour près, ADR-006), sur les commandes livrées.
 
 **Règle anti-fuite (non négociable) :** seules les informations connues **au moment de l'achat** sont autorisées.
 - Autorisé : délai estimé (`estimated - purchase`), distance client-vendeur (geolocation), état client/vendeur, prix, fret, poids/volume, catégorie, nb d'articles, nb de vendeurs dans la commande, type de paiement, échéances, mois / jour de semaine / proximité des fêtes, **historique du vendeur calculé uniquement sur les commandes antérieures** (taux de retard passé).
@@ -352,3 +352,4 @@ Budget estimé total : **15 à 35 USD** sur 100 USD *(estimation non vérifiée,
 | 2026-10-26 | 0 | Benchmark de 9 repos, décisions ADR-003 ; Azure CLI 2.91.0, login OK après `az login --tenant` (MFA) ; abonnement « Azure for Students » Enabled ; 7 providers enregistrés ; quotas switzerlandnorth vérifiés (6 régionaux, DSv2 4, DSv3 4) ; repo poussé sur GitHub ; budget mensuel 20 USD créé dans le portail (alertes 50/80/100 %), visible dans Cost Management → Budgets ; `pytest` : 1 passed. **Phase 0 terminée.** | 0 USD | Phase 1 : EDA + Bronze en local |
 | 2026-10-26 | 1 | `bronze.py` (schémas explicites, multiLine, FAILFAST), `eda.py`, tests Bronze ; défauts mesurés dans ADR-004 | 9 tables Bronze = comptes CSV ; retard 8,11 % ; notes 2,57 / 4,29 ; `pytest` : 13 passed ; 0 USD | Phase 2 : Silver + qualité |
 | 2026-10-26 | 2 | `silver.py`, `quality.py` (16 contrôles bloquants + 7 avertissements), quarantaine, tests Silver ; règles dans ADR-005 | 16/16 contrôles bloquants OK ; 42 lignes en quarantaine ; écart paiements expliqué ; `pytest` : 18 passed ; 0 USD | Phase 3 : Gold + maquette Power BI |
+| 2026-10-26 | 3 | `gold.py` (4 dimensions, 2 faits, export Parquet pour Power BI), `sql/checks.sql` (11 contrôles bloquants), `measures.dax` ; définition du retard au jour près (ADR-006) | 11/11 contrôles Gold OK ; retard 6,77 % ; notes 2,27 / 4,29 ; `pytest` : 23 passed ; 0 USD | Maquette Power BI (page 1), puis phase 4 |
