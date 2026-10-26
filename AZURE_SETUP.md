@@ -2,6 +2,7 @@
 
 > Compte : **Azure for Students** (100 USD, expire le 25/10/2027).
 > Région unique : **switzerlandnorth** (autorisée par la policy du compte).
+> **Calcul : Databricks serverless uniquement** (ADR-007). L'abonnement ne peut lancer aucune VM dans les régions où Databricks existe : pas de cluster classique.
 > Règle d'or : **ne rien créer dans Azure avant que le pipeline marche en local** (voir CAHIER_DES_CHARGES.md, phases 0 à 3).
 > Les prix et limites marqués *(non vérifié)* sont des ordres de grandeur, à confirmer dans le portail ou sur la calculatrice de prix Azure le jour où tu crées la ressource.
 
@@ -17,9 +18,9 @@
 | 3 | Vérifier les quotas vCPU | Jour 1 | 0 |
 | 4 | Resource group `rg-olist` | Début phase 4 | 0 |
 | 5 | Storage ADLS Gen2 + conteneurs + upload CSV | Phase 4 | quelques centimes/mois |
-| 6 | Workspace Azure Databricks | Phase 4 | 0 tant qu'aucun cluster ne tourne |
-| 7 | Access Connector + droits sur le stockage | Phase 4 | 0 |
-| 8 | Cluster single node (auto-stop 15 min) | Phase 4 | **le poste principal** |
+| 6 | Workspace Azure Databricks (Premium) | Phase 4 | 0 tant que rien ne s'exécute |
+| 7 | Access Connector + Unity Catalog (catalogue, schémas, volume) | Phase 4 | 0 |
+| 8 | Job serverless 01 → 03 | Phase 4 | **le poste principal** (payé à l'exécution) |
 | 9 | Azure Data Factory + linked services | Phase 5 | faible (paiement à l'exécution) |
 | 10 | Connexion Power BI | Phase 6 | 0 (Desktop gratuit) |
 | 11 | (Option) Service principal pour GitHub Actions | Phase 8 | 0 |
@@ -100,20 +101,24 @@ Portail : **Abonnements → ton abonnement → Fournisseurs de ressources → re
 
 ---
 
-## 3. Vérifier les quotas (déjà constaté)
+## 3. Quotas et tailles de VM (constaté le 2026-10-26)
 
-Dans switzerlandnorth : **Total Regional vCPUs = 6, DSv2 = 4, DSv3 = 4.**
+Un quota n'est pas une autorisation : `az vm list-usage` montre des quotas (6 vCPU régionaux, DSv2 = 4…), mais `az vm list-skus` montre que **presque toutes les tailles sont `NotAvailableForSubscription`** sur ce compte.
 
-Conséquence directe :
-- Un `Standard_DS3_v2` = 4 vCPU. **Un seul cluster à la fois**, en **single node** (pas de workers).
-- Data Factory ne doit **pas** lancer un « job cluster » en parallèle d'un cluster interactif allumé : ça demanderait 8 vCPU et échouerait. → ADF utilisera le **cluster existant** (étape 9).
-- Pas de SQL Warehouse Databricks classique (il démarre ses propres VM). Power BI se connectera au cluster.
+| Région autorisée (policy) | Databricks proposé | VM 4 vCPU utilisable |
+|---|---|---|
+| switzerlandnorth | oui | **aucune** |
+| norwayeast | oui | **aucune** |
+| austriaeast | non | DS3_v2_Promo… |
+| denmarkeast | non | DS3_v2… |
+| polandcentral | non | aucune |
 
-```bash
-az vm list-usage --location $LOC -o table | grep -Ei "Total Regional|DSv2|DSv3"
+Conséquence : **aucun cluster Databricks classique possible**. On utilise le **calcul serverless** (les machines tournent dans l'abonnement Databricks, pas le nôtre), supporté en switzerlandnorth d'après la page « Features with limited regional availability » de Microsoft Learn (mise à jour le 2026-10-21). Voir ADR-007.
+
+```powershell
+# Revérifier une taille dans une région (restrictions vides = utilisable)
+az vm list-skus --location switzerlandnorth --size Standard_DS3_v2 --all --query "[].{name:name, r:restrictions[].reasonCode}" -o table
 ```
-
-Si un quota bloque : **Portail → Quotas → Calcul → switzerlandnorth → Demander une augmentation**. Sur un compte étudiant la demande peut être refusée *(non vérifié)* ; le plan ci-dessous fonctionne avec les quotas actuels.
 
 ---
 
@@ -159,7 +164,7 @@ DoD : `az storage fs file list` montre les 9 CSV.
 
 ## 6. Workspace Azure Databricks
 
-**Pricing tier :** choisis **Premium** (ou **Trial**, qui donne 14 jours de DBU offerts puis bascule en Premium, *non vérifié pour Azure for Students*). Premium est nécessaire pour **Unity Catalog**, qui est la façon actuelle de connecter le stockage. Le tier Standard est en cours de retrait pour les nouveaux workspaces *(non vérifié, à lire dans le portail)*.
+**Pricing tier :** **Premium** (nécessaire pour Unity Catalog et le serverless). **Pas de Trial** : il offre des DBU sur le calcul classique, que l'on ne peut pas utiliser ici *(non vérifié pour le serverless)*.
 
 > Ne crée le workspace « Trial » que le jour où tu es prêt à travailler dessus, sinon les 14 jours filent pour rien.
 
@@ -171,7 +176,7 @@ az databricks workspace show -g $RG -n $DBW --query workspaceUrl -o tsv
 
 Portail : **Créer une ressource → Azure Databricks → RG `rg-olist`, région Switzerland North, tier Premium/Trial → Mise en réseau : laisser par défaut (pas de VNet injection) → Créer.**
 
-Ce que ça crée en plus : un groupe managé `databricks-rg-dbw-olist-...` (ne le modifie pas). Le workspace seul ne coûte rien ; ce sont les clusters qui coûtent.
+Ce que ça crée en plus : un groupe managé `databricks-rg-dbw-olist-...` (ne le modifie pas). Le workspace seul ne coûte rien ; seules les exécutions serverless coûtent.
 
 ---
 
@@ -192,7 +197,12 @@ echo $AC_ID   # à coller dans Databricks
    - [ ] Vérifier que le workspace a un **metastore Unity Catalog** (Catalog Explorer). Les nouveaux workspaces Premium sont normalement activés automatiquement *(non vérifié pour ta région)*.
    - [ ] **Catalog → External data → Credentials → Create credential** : type *Azure Managed Identity*, coller `$AC_ID`. Nom : `cred_olist`.
    - [ ] **External locations → Create** : une par conteneur, URL `abfss://bronze@<SA>.dfs.core.windows.net/` (idem `landing`, `silver`, `gold`), credential `cred_olist`. Cliquer **Test connection**.
-   - [ ] Créer le catalogue et les schémas :
+   - [ ] Créer, **depuis Catalog Explorer** (aucun calcul nécessaire, donc 0 €) :
+     - catalogue `olist` ;
+     - schémas `bronze`, `silver`, `gold` avec comme emplacement de stockage l'external location du conteneur du même nom, et `ml` ;
+     - schéma `landing` et, dedans, un **volume externe** `files` sur `abfss://landing@<SA>.dfs.core.windows.net/`. Le code lit les CSV dans `/Volumes/olist/landing/files/olist/` (`src/olist/config.py`), donc le nom du compte de stockage n'est jamais dans le code.
+
+   Équivalent SQL (si on dispose déjà d'un calcul) :
 
 ```sql
 CREATE CATALOG IF NOT EXISTS olist;
@@ -200,37 +210,31 @@ CREATE SCHEMA IF NOT EXISTS olist.bronze  MANAGED LOCATION 'abfss://bronze@<SA>.
 CREATE SCHEMA IF NOT EXISTS olist.silver  MANAGED LOCATION 'abfss://silver@<SA>.dfs.core.windows.net/';
 CREATE SCHEMA IF NOT EXISTS olist.gold    MANAGED LOCATION 'abfss://gold@<SA>.dfs.core.windows.net/';
 CREATE SCHEMA IF NOT EXISTS olist.ml;
+CREATE SCHEMA IF NOT EXISTS olist.landing;
+CREATE EXTERNAL VOLUME IF NOT EXISTS olist.landing.files LOCATION 'abfss://landing@<SA>.dfs.core.windows.net/';
 ```
 
 **Plan B** si Unity Catalog n'est pas disponible : clé du compte de stockage dans un **Databricks secret scope** + `spark.conf.set("fs.azure.account.key.<SA>.dfs.core.windows.net", dbutils.secrets.get(...))`. Moins propre, mais fonctionne. Ne jamais mettre la clé en clair dans un notebook ou dans Git.
 
 ---
 
-## 8. Cluster (le seul poste de coût important)
+## 8. Exécution serverless (le seul poste de coût important)
 
-UI : **Compute → Create compute**
+Pas de cluster (étape 3). Le code s'exécute en **Job** sur le calcul serverless.
 
-| Paramètre | Valeur |
-|---|---|
-| Policy | Unrestricted (ou Personal Compute) |
-| Mode | **Single node** |
-| Access mode | **Dedicated / Single user** (requis pour MLflow + UC simplement) |
-| Runtime | **18 LTS ML** (Spark 4.1, Python 3.12, Java 21, Delta 4.2) : mêmes versions que l'image Docker locale |
-| Node type | **Standard_DS3_v2** (4 vCPU, 14 Go) |
-| Photon | **désactivé** (coûte plus de DBU, inutile ici) |
-| Terminate after | **15 minutes** d'inactivité |
-| Tags | `projet=olist` |
-
-Coût estimé : VM DS3_v2 + ~0,75 DBU/h → **environ 0,6 à 1,2 USD par heure allumée** *(non vérifié : dépend du tarif Premium DBU et du prix VM en Suisse, vérifie sur la calculatrice Azure)*. Avec ~25 heures de cluster sur le projet → **15 à 30 USD**. Le crédit de 100 USD suffit si tu respectes l'arrêt auto.
+1. **Workspace → Git folders → Create** : URL du repo GitHub, branche `main`. Les notebooks `notebooks/01_bronze`, `02_silver`, `03_gold` y apparaissent.
+2. **Jobs & Pipelines → Create job** `olist_pipeline`, 3 tâches de type *Notebook*, source *Workspace* (le Git folder), calcul **Serverless**, dépendances 01 → 02 → 03.
+3. Dans les réglages du job : **Performance optimized = désactivé** (mode standard, moins cher, démarrage plus lent) *(option à confirmer dans l'interface)*.
+4. **Run now**, une fois. Vérifier les tables dans Catalog Explorer, puis le coût (étape 1, et `system.billing.usage` si accessible).
 
 Règles :
-- [ ] Toujours **Terminate** à la main en fin de session (ne compte pas uniquement sur l'auto-stop).
-- [ ] Développer d'abord en local (phases 1-3), n'utiliser le cluster que pour exécuter du code qui marche déjà.
-- [ ] Récupère le **Cluster ID** (URL ou JSON du cluster) : nécessaire pour ADF et Power BI.
-
----
+- [ ] **Jamais de développement interactif sur serverless** : le code est développé et testé en local (Docker), le cloud ne fait qu'exécuter du code qui marche. C'est l'erreur à ~35 USD en 3 jours vue dans le benchmark.
+- [ ] Un notebook attaché au serverless facture tant qu'il est actif : le détacher après usage.
+- [ ] Noter le coût de chaque run dans le journal d'avancement.
 
 ## 9. Azure Data Factory
+
+> ⚠️ **À réviser en phase 5 (ADR-007)** : pas de cluster existant. ADF lancera le job serverless `olist_pipeline` avec l'activité *Databricks Job* (piste notée dans ADR-003). Les mentions de cluster ci-dessous sont obsolètes.
 
 ```bash
 az datafactory create -g $RG -n $ADF -l $LOC
@@ -267,6 +271,8 @@ Coût : ADF facture à l'exécution d'activité et à la durée de copie ; pour 
 
 ## 10. Power BI
 
+> ⚠️ **À réviser en phase 6 (ADR-007)** : pas de cluster. La connexion se fera sur un **SQL warehouse serverless** (2X-Small, arrêt auto court), en mode Import.
+
 - [ ] Installer **Power BI Desktop** (gratuit, Windows).
 - [ ] Phase 3 (local) : connecter Desktop aux fichiers Parquet/CSV Gold produits en local.
 - [ ] Phase 6 (cloud) : **Obtenir les données → Azure Databricks** → Server hostname + HTTP path du cluster (*Compute → ton cluster → Advanced → JDBC/ODBC*) → authentification *Microsoft Entra ID* → mode **Import** (pas DirectQuery : une fois importé, tu peux éteindre le cluster).
@@ -300,7 +306,7 @@ Après avoir pris **toutes** les captures (voir la liste dans CAHIER_DES_CHARGES
 
 - [ ] Exporter les JSON ADF (déjà dans Git si l'étape 9 Git est faite), les notebooks (`databricks workspace export-dir`), le `.pbix`.
 - [ ] Désactiver les triggers ADF.
-- [ ] Terminer puis **supprimer** le cluster.
+- [ ] Supprimer le job et le SQL warehouse serverless.
 - [ ] Option économe : garder seulement le compte de stockage (centimes/mois) pour pouvoir refaire une démo.
 - [ ] Option zéro coût :
 
@@ -316,7 +322,7 @@ az group delete --name $RG --yes --no-wait
 
 | Symptôme | Cause probable | Correctif |
 |---|---|---|
-| `QuotaExceeded` au démarrage du cluster | Un autre cluster / job cluster tourne déjà, ou multi-nœud | Single node, un seul cluster, ADF sur cluster existant |
+| `NotAvailableForSubscription` / `QuotaExceeded` sur un cluster | Taille de VM interdite sur ce compte (étape 3) | Serverless uniquement |
 | `RequestDisallowedByPolicy` | Région non autorisée | Toujours `switzerlandnorth` |
 | `AuthorizationPermissionMismatch` sur le stockage | Rôle de données manquant ou pas encore propagé | `Storage Blob Data Contributor` + attendre 2-5 min |
 | `MissingSubscriptionRegistration` | Provider non enregistré | Étape 2 |

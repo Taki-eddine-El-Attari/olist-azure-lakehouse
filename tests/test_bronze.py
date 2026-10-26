@@ -4,7 +4,8 @@ from pathlib import Path
 import pytest
 from pyspark.sql import functions as F
 
-from olist.bronze import BRONZE_DIR, RAW_DIR, TABLES, read_csv
+from olist.bronze import TABLES, read_csv
+from olist.config import LAKE_DIR, RAW_DIR, read_table
 
 REVIEWS_SCHEMA = TABLES["order_reviews"][1]
 HEADER = "review_id,order_id,review_score,review_comment_title,review_comment_message,review_creation_date,review_answer_timestamp\n"
@@ -54,11 +55,11 @@ def csv_record_count(path: Path) -> int:
         return sum(1 for _ in csv.reader(f)) - 1
 
 
-@pytest.mark.skipif(not Path(BRONZE_DIR).exists(), reason="run `python -m olist.bronze` first")
+@pytest.mark.skipif(not Path(LAKE_DIR, "bronze").exists(), reason="run `python -m olist.bronze` first")
 @pytest.mark.parametrize("table", TABLES)
 def test_bronze_count_equals_csv(spark, table):
     expected = csv_record_count(Path(RAW_DIR) / TABLES[table][0])
-    assert spark.read.format("delta").load(f"{BRONZE_DIR}/{table}").count() == expected
+    assert read_table(spark, "bronze", table).count() == expected
 
 
 def test_known_counts():

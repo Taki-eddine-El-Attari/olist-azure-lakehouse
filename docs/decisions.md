@@ -99,3 +99,20 @@ Conséquences : `sql/checks.sql`, `measures.dax` et la cible ML (phase 7) utilis
 - Export pour Power BI : un fichier Parquet par table dans `data/powerbi/`, parce que Power BI Desktop n'a pas de lecteur intégré pour un dossier Delta local *(d'après mes connaissances, non vérifié dans ta version de Power BI)*. Lire directement les fichiers Parquet d'une table Delta serait faux : après un `overwrite`, les anciens fichiers restent dans le dossier jusqu'au `VACUUM`.
 
 **Résultat du run complet :** 11/11 contrôles Gold passent (volumes, sommes de prix et de paiements identiques à Silver, aucune clé nulle, 6,77 %, 2,27, 4,29).
+
+## ADR-007 — Databricks serverless : aucune VM utilisable sur l'abonnement (2026-10-26)
+
+**Constat** (`az vm list-skus`, `az vm list-usage`, policy « Allowed resource deployment regions ») : le compte Azure for Students n'autorise que 5 régions. Les deux seules qui proposent Databricks (switzerlandnorth, norwayeast) n'offrent **aucune** taille de VM utilisable : toutes sont `NotAvailableForSubscription`, ou dépassent le quota de 6 vCPU. Les régions qui ont des VM utilisables (austriaeast, denmarkeast) ne proposent pas Databricks. Les quotas vus en phase 0 (DSv2 = 4…) ne garantissaient donc rien : un quota n'est pas une autorisation.
+
+**Décision (validée) :** workspace Databricks **Premium** en switzerlandnorth, calcul **serverless** uniquement. Le serverless y est supporté (Microsoft Learn, « Features with limited regional availability », mise à jour du 2026-10-21) et ses machines tournent chez Databricks, pas dans l'abonnement.
+
+**Options écartées :** demande au support pour débloquer DS3_v2 (lente, incertaine, pas de plan de support sur un compte Students) ; quitter Azure Databricks (Free Edition, Synapse), ce qui fait perdre la compétence visée.
+
+**Conséquences :**
+- Pas de cluster. Le pipeline tourne en **job serverless** `olist_pipeline` (notebooks 01 → 03), en mode standard (moins cher).
+- La règle « serverless interdit » (ADR-003) devient « **pas de développement interactif sur serverless** » : le risque du benchmark venait du développement interactif, pas du serverless en soi.
+- Code : `src/olist/config.py` choisit entre dossiers Delta locaux et tables Unity Catalog `olist.<couche>.<table>`. Les CSV sont lus dans le volume `/Volumes/olist/landing/files/olist`. Session forcée en UTC aussi sur Databricks. Pas de `.cache()` (non supporté en serverless).
+- Phase 5 : ADF lance le job via l'activité *Databricks Job* (piste d'ADR-003), puisqu'il n'y a pas de cluster existant.
+- Phase 6 : Power BI se connecte à un SQL warehouse serverless.
+- L'image Docker reste alignée sur DBR 18 LTS ML. Le serverless suit sa propre version d'environnement : l'alignement des versions devient approximatif, à vérifier au premier run (version de Python et de Spark affichées).
+- Prix serverless Azure **non vérifié** (page de prix officielle trop lourde à charger, sources tierces contradictoires) : le coût réel du premier run sera mesuré et noté avant d'aller plus loin.

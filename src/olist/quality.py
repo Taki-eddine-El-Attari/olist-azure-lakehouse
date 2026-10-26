@@ -5,10 +5,9 @@ import uuid
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 
-from olist.silver import SILVER_DIR
+from olist.config import read_table, write_table
 from olist.spark import get_spark
 
-DQ_RESULTS = "data/lake/gold/dq_results"
 SILVER_TABLES = ["orders", "order_items", "order_payments", "order_reviews", "customers", "sellers",
                  "products", "geolocation", "quarantine"]
 
@@ -83,11 +82,11 @@ def run_checks(spark: SparkSession, tables: dict[str, DataFrame], checks=CHECKS)
     ).withColumn("run_ts", F.current_timestamp())
 
 
-def main() -> None:
-    spark = get_spark("olist-quality")
-    tables = {t: spark.read.format("delta").load(f"{SILVER_DIR}/{t}") for t in SILVER_TABLES}
-    results = run_checks(spark, tables).cache()
-    results.write.format("delta").mode("append").save(DQ_RESULTS)  # history: one batch per run
+def check_silver(spark: SparkSession) -> None:
+    """Run CHECKS on Silver, append the results to gold.dq_results, raise if an 'error' check fails."""
+    tables = {t: read_table(spark, "silver", t) for t in SILVER_TABLES}
+    results = run_checks(spark, tables)  # no .cache(): unsupported on serverless, rows are already computed
+    write_table(results, "gold", "dq_results", mode="append")  # history: one batch per run
     results.select("table", "check_name", "severity", "failed_rows", "status").show(len(CHECKS), truncate=False)
     failed = [r.check_name for r in results.where("status = 'fail'").collect()]
     if failed:
@@ -95,4 +94,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    check_silver(get_spark("olist-quality"))

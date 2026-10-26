@@ -9,12 +9,12 @@ from pathlib import Path
 from pyspark.sql import Column, DataFrame, SparkSession, Window
 from pyspark.sql import functions as F
 
-from olist.silver import SILVER_DIR
+from olist.config import read_table, write_table
 from olist.spark import get_spark
 
-GOLD_DIR = "data/lake/gold"
 POWERBI_DIR = "data/powerbi"
-CHECKS_SQL = "sql/checks.sql"
+# Relative to the repo, not the working directory: a Databricks notebook runs from notebooks/.
+CHECKS_SQL = str(Path(__file__).resolve().parents[2] / "sql" / "checks.sql")
 
 
 def with_key(df: DataFrame, key: str, natural_key: str) -> DataFrame:
@@ -180,8 +180,8 @@ def export_for_powerbi(tables: dict[str, DataFrame], out_dir: str = POWERBI_DIR)
         shutil.rmtree(tmp)
 
 
-def build(spark: SparkSession, silver_dir: str = SILVER_DIR, gold_dir: str = GOLD_DIR) -> dict[str, DataFrame]:
-    s = {t: spark.read.format("delta").load(f"{silver_dir}/{t}") for t in
+def build(spark: SparkSession) -> dict[str, DataFrame]:
+    s = {t: read_table(spark, "silver", t) for t in
          ["orders", "order_items", "order_payments", "order_reviews", "customers", "sellers", "products", "geolocation"]}
     dim_customer = build_dim_customer(s["customers"], s["orders"], s["geolocation"])
     dim_seller = build_dim_seller(s["sellers"], s["geolocation"])
@@ -197,9 +197,9 @@ def build(spark: SparkSession, silver_dir: str = SILVER_DIR, gold_dir: str = GOL
                                                    dim_customer, dim_product, dim_seller),
     }
     for name, df in tables.items():
-        df.write.format("delta").mode("overwrite").option("overwriteSchema", True).save(f"{gold_dir}/{name}")
+        write_table(df, "gold", name)
     # Re-read from Delta so checks and export see exactly what was written.
-    written = {name: spark.read.format("delta").load(f"{gold_dir}/{name}") for name in tables}
+    written = {name: read_table(spark, "gold", name) for name in tables}
     for name, df in {**written, **{f"silver_{t}": df for t, df in s.items()}}.items():
         df.createOrReplaceTempView(name)
     return written
