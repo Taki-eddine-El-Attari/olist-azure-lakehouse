@@ -16,4 +16,4 @@ from olist.spark import get_spark
 spark = get_spark()
 for name, df in build(spark).items():
     print(f"{name:<18}{df.count():>8}")
-run_sql_checks(spark)
+_ = run_sql_checks(spark)  # results are already printed; `_ =` stops the notebook echoing the list
