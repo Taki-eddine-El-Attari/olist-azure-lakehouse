@@ -3,7 +3,8 @@
 Run: python -m olist.eda (after python -m olist.bronze). Prints one number per check.
 """
 
-from olist.bronze import BRONZE_DIR, TABLES
+from olist.bronze import TABLES
+from olist.config import read_table
 from olist.spark import get_spark
 
 CHECKS = {
@@ -68,7 +69,7 @@ CHECKS = {
 def main() -> None:
     spark = get_spark("olist-eda")
     for table in TABLES:
-        spark.read.format("delta").load(f"{BRONZE_DIR}/{table}").createOrReplaceTempView(table)
+        read_table(spark, "bronze", table).createOrReplaceTempView(table)
     for label, query in CHECKS.items():
         print(f"{label:<48}{spark.sql(query).first()[0]}")
 

@@ -5,10 +5,8 @@ from functools import reduce
 from pyspark.sql import DataFrame, SparkSession, Window
 from pyspark.sql import functions as F
 
-from olist.bronze import BRONZE_DIR
+from olist.config import read_table, write_table
 from olist.spark import get_spark
-
-SILVER_DIR = "data/lake/silver"
 
 # Two categories used by products are missing from the translation file (ADR-004).
 MANUAL_TRANSLATIONS = [
@@ -81,11 +79,11 @@ def clean_geolocation(geolocation: DataFrame) -> DataFrame:
     )
 
 
-def build(spark: SparkSession, bronze_dir: str = BRONZE_DIR, silver_dir: str = SILVER_DIR) -> dict[str, int]:
+def build(spark: SparkSession) -> dict[str, int]:
     """Rebuild every Silver table and the quarantine table from Bronze. Returns row counts."""
 
     def bronze(table: str) -> DataFrame:
-        return spark.read.format("delta").load(f"{bronze_dir}/{table}").drop("_ingested_at", "_source_file")
+        return read_table(spark, "bronze", table).drop("_ingested_at", "_source_file")
 
     valid, quarantines = {}, []
     for table in ["orders", "order_items", "order_payments", "order_reviews", "customers", "sellers",
@@ -107,9 +105,8 @@ def build(spark: SparkSession, bronze_dir: str = BRONZE_DIR, silver_dir: str = S
     }
     counts = {}
     for table, df in tables.items():
-        path = f"{silver_dir}/{table}"
-        df.write.format("delta").mode("overwrite").option("overwriteSchema", True).save(path)
-        counts[table] = spark.read.format("delta").load(path).count()
+        write_table(df, "silver", table)
+        counts[table] = read_table(spark, "silver", table).count()
     return counts
 
 

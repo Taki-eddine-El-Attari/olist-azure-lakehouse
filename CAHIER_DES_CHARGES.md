@@ -25,7 +25,7 @@
 ### Dans le périmètre
 - Lakehouse **ADLS Gen2** en couches **Bronze / Silver / Gold** (format **Delta**).
 - Orchestration **Azure Data Factory**.
-- Transformations **PySpark** sur **Azure Databricks** (cluster single node).
+- Transformations **PySpark** sur **Azure Databricks**, calcul **serverless** (aucune VM autorisée sur l'abonnement, ADR-007).
 - Modèle en étoile Gold + **Power BI** (4 pages).
 - Modèle ML **« retard de livraison »** (cible principale) entraîné dans Databricks, suivi **MLflow**, enregistré dans le registre de modèles, **scoring batch** écrit en Gold et affiché dans Power BI.
 - Tests unitaires des fonctions de transformation + contrôles de qualité des données.
@@ -230,9 +230,9 @@ Durée indicative : **5 semaines** à ~10 h/semaine. Chaque phase = une ou plusi
 ### Phase 4 — Déploiement Azure : stockage + Databricks (2-3 jours)
 - AZURE_SETUP.md étapes 4 à 8.
 - `config.py` bascule sur les chemins Unity Catalog (`olist.bronze.*`, etc.).
-- Synchroniser le repo dans Databricks (**Workspace → Git folders**), lancer 01 → 03 sur le cluster.
+- Synchroniser le repo dans Databricks (**Workspace → Git folders**), lancer 01 → 03 en **job serverless** (AZURE_SETUP.md étape 8).
 
-**DoD :** tables `olist.bronze/silver/gold.*` visibles dans Catalog Explorer ; mêmes chiffres qu'en local ; cluster terminé après la session ; coût de la session noté dans `docs/decisions.md`.
+**DoD :** tables `olist.bronze/silver/gold.*` visibles dans Catalog Explorer ; mêmes chiffres qu'en local ; aucun notebook resté attaché au serverless ; coût du run noté dans `docs/decisions.md`.
 
 ### Phase 5 — Orchestration Data Factory (1-2 jours)
 - AZURE_SETUP.md étape 9 : linked services, pipeline `pl_olist_daily`, intégration Git.
@@ -241,7 +241,7 @@ Durée indicative : **5 semaines** à ~10 h/semaine. Chaque phase = une ou plusi
 **DoD :** un run complet **vert** de bout en bout depuis ADF (capture du monitoring) ; JSON du pipeline dans `adf/` sur GitHub ; trigger désactivé.
 
 ### Phase 6 — Power BI final (2-3 jours)
-Connexion au cluster en mode Import (AZURE_SETUP.md étape 10). 4 pages :
+Connexion à un SQL warehouse serverless en mode Import (AZURE_SETUP.md étape 10). 4 pages :
 1. **Vue d'ensemble** : CA, commandes, panier moyen, évolution mensuelle, carte par état.
 2. **Logistique** : taux de retard par état client/vendeur, par catégorie, par mois ; délai réel vs estimé.
 3. **Satisfaction** : note moyenne vs retard (le chiffre choc 2,27 vs 4,29), part d'avis négatifs.
@@ -296,17 +296,16 @@ Puis : README final (schéma, captures, résultats, coûts réels, « Known gaps
 
 | Risque | Probabilité | Impact | Parade |
 |---|---|---|---|
-| Cluster oublié allumé | moyenne | perte de crédit | auto-stop 15 min + Terminate manuel + suivi du crédit à chaque session |
-| Calcul **serverless** Databricks utilisé par défaut | moyenne | ~35 USD en 3 jours constatés sur un autre projet Students | serverless interdit : notebooks et jobs toujours attachés au cluster single node (docs/benchmark.md, leçon 5) |
-| Quota vCPU (6 / DSv2 4) | élevée si multi-nœud | cluster ne démarre pas | single node DS3_v2, ADF sur cluster existant, pas de SQL Warehouse |
-| ADF (identité managée) refusé sur le cluster *Single user* | moyenne *(non vérifié)* | pipeline ADF en échec | fallback *Access token* Databricks dans Key Vault (AZURE_SETUP.md étape 9) |
+| Coût du **serverless** (seul calcul possible, ADR-007) | moyenne | ~35 USD en 3 jours constatés sur un autre projet Students en développement interactif | jamais de développement interactif : code testé en local, le cloud n'exécute que des jobs ; mode standard (non « performance optimized ») ; coût de chaque run noté ; budget à 20 USD |
+| Aucune VM utilisable sur l'abonnement (constaté) | certaine | pas de cluster classique | serverless (ADR-007) |
+| ADF ne sait pas lancer le job serverless | moyenne *(non vérifié)* | pipeline ADF en échec | activité *Databricks Job* ; sinon appel de l'API Jobs par une activité Web (phase 5) |
 | Unity Catalog indisponible | faible *(non vérifié)* | accès stockage | plan B secret scope (AZURE_SETUP.md étape 7) |
 | Pas le droit de créer un service principal | moyenne *(non vérifié)* | CI/CD deploy | CI lint + tests seulement |
 | Power BI Service sans licence | moyenne | partage en ligne | livrer .pbix + PDF + captures |
 | Fuite de données dans le ML | élevée si on ne fait pas attention | résultats faux, entretien raté | §8 phase 7, split temporel, liste de features revue |
 | Scope creep (GenAI, streaming...) | moyenne | projet jamais fini | hors périmètre §2 ; finir 0-7 avant toute option |
 
-Budget estimé total : **15 à 35 USD** sur 100 USD *(estimation non vérifiée, dominée par les heures de cluster)*.
+Budget estimé total : **15 à 35 USD** sur 100 USD *(estimation non vérifiée, dominée par les exécutions serverless ; à recalculer après le premier run)*.
 
 ---
 
@@ -338,7 +337,7 @@ Budget estimé total : **15 à 35 USD** sur 100 USD *(estimation non vérifiée,
 - Logique dans `src/olist`, notebooks fins. Fonctions pures et testées.
 - Ne jamais commiter `data/`, `.env`, clés, tokens. Les noms de ressources vont dans `.env` (modèle dans `.env.example`).
 - Ne rien inventer : chaque chiffre du README vient d'une exécution réelle (sortie de script, run MLflow).
-- Toute action Azure qui crée une ressource facturable : la proposer, ne pas l'exécuter sans mon accord. Rappeler de terminer le cluster en fin de session.
+- Toute action Azure qui crée une ressource facturable : la proposer, ne pas l'exécuter sans mon accord. Rappeler de détacher les notebooks du serverless en fin de session.
 - Commits courts en anglais, style conventionnel (`feat:`, `fix:`, `test:`, `docs:`).
 - Région Azure : **toujours `switzerlandnorth`**.
 

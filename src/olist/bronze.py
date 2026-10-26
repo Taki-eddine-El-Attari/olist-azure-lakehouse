@@ -3,10 +3,8 @@
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 
+from olist.config import RAW_DIR, read_table, write_table
 from olist.spark import get_spark
-
-RAW_DIR = "data/raw"
-BRONZE_DIR = "data/lake/bronze"
 
 # Bronze table -> (CSV file, schema in CSV column order). Source column names are kept as is
 # (typos included). Zip prefixes stay strings to keep leading zeros; money is DECIMAL, not DOUBLE.
@@ -79,13 +77,12 @@ def read_csv(spark: SparkSession, path: str, schema: str) -> DataFrame:
     )
 
 
-def ingest(spark: SparkSession, raw_dir: str = RAW_DIR, bronze_dir: str = BRONZE_DIR) -> dict[str, int]:
+def ingest(spark: SparkSession, raw_dir: str = RAW_DIR) -> dict[str, int]:
     """Overwrite every Bronze table from its CSV (the source is a full snapshot). Returns row counts."""
     counts = {}
     for table, (file_name, schema) in TABLES.items():
-        path = f"{bronze_dir}/{table}"
-        read_csv(spark, f"{raw_dir}/{file_name}", schema).write.format("delta").mode("overwrite").save(path)
-        counts[table] = spark.read.format("delta").load(path).count()
+        write_table(read_csv(spark, f"{raw_dir}/{file_name}", schema), "bronze", table)
+        counts[table] = read_table(spark, "bronze", table).count()
     return counts
 
 

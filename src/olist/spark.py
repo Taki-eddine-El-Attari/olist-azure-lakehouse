@@ -6,7 +6,9 @@ from pyspark.sql import SparkSession
 def get_spark(app_name: str = "olist") -> SparkSession:
     """On Databricks, return the cluster session. Locally, start Spark with Delta."""
     if "DATABRICKS_RUNTIME_VERSION" in os.environ:
-        return SparkSession.builder.getOrCreate()
+        spark = SparkSession.builder.getOrCreate()
+        spark.conf.set("spark.sql.session.timeZone", "UTC")  # same as local: dates must not shift
+        return spark
 
     from delta import configure_spark_with_delta_pip
 
