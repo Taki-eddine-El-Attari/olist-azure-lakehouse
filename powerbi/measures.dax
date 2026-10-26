@@ -26,7 +26,7 @@ CALCULATE ( [Avg Review], fact_orders[order_status] = "delivered", fact_orders[i
 
 // Needs dim_date marked as date table (Table tools > Mark as date table > column [date]).
 Revenue YoY % =
-VAR PreviousYear = CALCULATE ( [Total Revenue], SAMEPERIODLASTYEAR ( dim_date[date] ) )
-RETURN DIVIDE ( [Total Revenue] - PreviousYear, PreviousYear )
+VAR RevenueLastYear = CALCULATE ( [Total Revenue], SAMEPERIODLASTYEAR ( dim_date[date] ) )
+RETURN DIVIDE ( [Total Revenue] - RevenueLastYear, RevenueLastYear )
 
 // Phase 7: Predicted Late Orders, once fact_late_predictions exists.
