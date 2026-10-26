@@ -116,3 +116,5 @@ Conséquences : `sql/checks.sql`, `measures.dax` et la cible ML (phase 7) utilis
 - Phase 6 : Power BI se connecte à un SQL warehouse serverless.
 - L'image Docker reste alignée sur DBR 18 LTS ML. Le serverless suit sa propre version d'environnement : l'alignement des versions devient approximatif, à vérifier au premier run (version de Python et de Spark affichées).
 - Prix serverless Azure **non vérifié** (page de prix officielle trop lourde à charger, sources tierces contradictoires) : le coût réel du premier run sera mesuré et noté avant d'aller plus loin.
+
+**Premier run serverless (2026-10-26)** : job `olist_pipeline` réussi de bout en bout. Mêmes chiffres qu'en local à l'unité près (Bronze = CSV, Silver 98 673 avis et 42 lignes en quarantaine, 16 `pass` / 7 `warn`, Gold 11/11 dont 6,77 %, 2,27, 4,29). Le code testé en Docker a tourné sur Databricks sans modification. La tâche Bronze a pris 4 min 14 s, contre ~47 s en local : démarrage du serverless en mode standard et écritures sur ADLS. Coût à relever dans le suivi du crédit (délai de quelques heures). Captures : `docs/screenshots/phase4_*.png`.
