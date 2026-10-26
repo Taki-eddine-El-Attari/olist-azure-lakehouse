@@ -1,5 +1,5 @@
 """Where data lives. Locally (Docker): Delta folders under data/lake. On Databricks: Unity Catalog
-tables olist.<layer>.<table>, and raw CSVs in a UC volume over the ADLS `landing` container."""
+tables olist.<layer>.<table>, and raw CSVs in the UC volume olist.landing.raw (= landing/olist/ in ADLS)."""
 
 import os
 
@@ -8,7 +8,7 @@ from pyspark.sql import DataFrame, SparkSession
 ON_DATABRICKS = "DATABRICKS_RUNTIME_VERSION" in os.environ
 CATALOG = "olist"
 LAKE_DIR = "data/lake"
-RAW_DIR = "/Volumes/olist/landing/files/olist" if ON_DATABRICKS else "data/raw"
+RAW_DIR = "/Volumes/olist/landing/raw" if ON_DATABRICKS else "data/raw"
 
 
 def read_table(spark: SparkSession, layer: str, name: str) -> DataFrame:

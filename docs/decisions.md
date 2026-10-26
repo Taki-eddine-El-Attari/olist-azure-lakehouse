@@ -111,7 +111,7 @@ Conséquences : `sql/checks.sql`, `measures.dax` et la cible ML (phase 7) utilis
 **Conséquences :**
 - Pas de cluster. Le pipeline tourne en **job serverless** `olist_pipeline` (notebooks 01 → 03), en mode standard (moins cher).
 - La règle « serverless interdit » (ADR-003) devient « **pas de développement interactif sur serverless** » : le risque du benchmark venait du développement interactif, pas du serverless en soi.
-- Code : `src/olist/config.py` choisit entre dossiers Delta locaux et tables Unity Catalog `olist.<couche>.<table>`. Les CSV sont lus dans le volume `/Volumes/olist/landing/files/olist`. Session forcée en UTC aussi sur Databricks. Pas de `.cache()` (non supporté en serverless).
+- Code : `src/olist/config.py` choisit entre dossiers Delta locaux et tables Unity Catalog `olist.<couche>.<table>`. Les CSV sont lus dans le volume `/Volumes/olist/landing/raw` (sous-dossier `olist/` du conteneur `landing`). Session forcée en UTC aussi sur Databricks. Pas de `.cache()` (non supporté en serverless).
 - Phase 5 : ADF lance le job via l'activité *Databricks Job* (piste d'ADR-003), puisqu'il n'y a pas de cluster existant.
 - Phase 6 : Power BI se connecte à un SQL warehouse serverless.
 - L'image Docker reste alignée sur DBR 18 LTS ML. Le serverless suit sa propre version d'environnement : l'alignement des versions devient approximatif, à vérifier au premier run (version de Python et de Spark affichées).
