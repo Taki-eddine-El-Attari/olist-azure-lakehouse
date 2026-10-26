@@ -44,6 +44,6 @@ Source : `data/powerbi/*.parquet`, produits par `python -m olist.gold`. Power BI
    4. **Retard par mois** : page vide → *Histogramme groupé* (barres verticales) → `dim_date[year]` puis `dim_date[month]` dans *Axe X* → `Late Rate %` dans *Axe Y*. Le visuel affiche d'abord les années : cliquer sur l'icône **double flèche vers le bas** (« Développer tous les niveaux ») en haut du visuel pour voir année + mois.
    5. **Retard par État** : page vide → *Graphique à barres groupées* (barres horizontales) → `dim_customer[state]` dans *Axe Y* → `Late Rate %` dans *Axe X* → *…* en haut du visuel → *Trier l'axe* → `Late Rate %`, décroissant.
    6. **Essayer l'interaction** : cliquer sur une barre d'État filtre les autres visuels de la page. C'est l'effet des relations du modèle.
-7. Enregistrer sous `powerbi/olist.pbix` (*Fichier → Enregistrer sous*).
+7. Enregistrer sous `powerbi/Olist.pbix` (*Fichier → Enregistrer sous*).
 
 **Contrôle :** les cartes doivent afficher **6,77 %**, **2,27** et **4,29**, comme `sql/checks.sql`. Un autre chiffre veut dire qu'une relation ou un filtre est faux.
