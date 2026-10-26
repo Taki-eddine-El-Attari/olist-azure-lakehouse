@@ -4,3 +4,5 @@ services:
     volumes:
       - .:/workspace
     working_dir: /workspace
+    environment:
+      PYTHONPATH: /workspace/src  # so `python -m olist.bronze` works like pytest
