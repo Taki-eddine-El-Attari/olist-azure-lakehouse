@@ -1,0 +1,4 @@
+# Versions aligned on Databricks Runtime 18 LTS (Spark 4.1.0, Delta 4.2.0).
+pyspark==4.1.1  # delta-spark 4.2.0 requires pyspark<=4.1.1
+delta-spark==4.2.0
+pytest==8.3.5
