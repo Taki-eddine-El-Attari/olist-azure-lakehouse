@@ -54,3 +54,27 @@ L'identité managée d'ADF n'est pas l'utilisateur assigné au cluster. Plan : t
 | Note moyenne retard / à l'heure | 2,57 / 4,29 | confirme l'histoire |
 
 Écarts avec le benchmark : BDhabekar annonce 622 commandes payées sans article et un écart de 122 510 BRL ; nous mesurons 775 et 165 318,88 BRL sur les données brutes. Leur filtre exact n'est pas connu (README seulement).
+
+## ADR-005 — Règles Silver et contrôles qualité (2026-10-26)
+
+**Enquête avant les règles** (sur les CSV) : trois points de l'ADR-004 changent de sens.
+- Les **61** commandes « livrées avant approbation » ont toutes une livraison après l'achat : c'est la date d'**approbation** qui est enregistrée en retard (de 0,1 h à 7 jours). On garde ces commandes, en avertissement.
+- L'écart paiements − articles (**165 318,88 BRL**) est expliqué : 162 591,95 BRL viennent des 775 commandes sans article (603 `unavailable`, 164 `canceled` : payées, jamais expédiées), et 2 870,39 BRL des commandes avec articles, dont 99 % des trop-payées ont plusieurs échéances (intérêts).
+- Les villes clients sont déjà en minuscules sans espaces superflus (0 à corriger) : pas de règle trim/lower.
+
+**Règles Silver** (`src/olist/silver.py`) :
+
+| Table | Règle |
+|---|---|
+| orders | `delivery_status` = `delivered` si la date de livraison client existe, sinon `not_delivered` (les 8 `delivered` sans date deviennent `not_delivered`) |
+| order_reviews | un avis par commande, le plus récent (création puis réponse) ; un `review_id` partagé est gardé pour chaque commande |
+| products | catégorie nulle → `unknown` ; 2 traductions manuelles ; colonnes `*_lenght` renommées `*_length` |
+| geolocation | points hors du Brésil (lat −34..6, lng −74..−34) en quarantaine (42), puis médiane lat/lng par préfixe |
+| order_items, order_payments | montants négatifs en quarantaine (0 trouvé) |
+| autres | colonnes Bronze `_ingested_at` / `_source_file` retirées, rien d'autre |
+
+**Quarantaine** : une seule table `silver/quarantine` (`table`, `_rule`, `record` en JSON, `_quarantined_at`), pour garder des schémas différents dans une table.
+
+**Contrôles** (`src/olist/quality.py`, résultats ajoutés à `gold/dq_results` à chaque run) : 16 contrôles `error` (clés uniques et non nulles, intégrité référentielle, catégories remplies, livraison après achat) qui font échouer le run, et 7 `warn` qui comptent les défauts connus sans bloquer.
+
+**Résultat du premier run complet** : 16/16 `error` passent. Warnings : livrée avant approbation 61, transporteur avant achat 166, payées sans article 775, commande sans paiement 1, paiements à 0 9, clients dont le préfixe n'a pas de géolocalisation 279 (157 préfixes), quarantaine 42. Silver : 98 673 avis (= 99 441 commandes − 768 sans avis), 19 010 préfixes (5 préfixes n'avaient que des points hors du Brésil).
