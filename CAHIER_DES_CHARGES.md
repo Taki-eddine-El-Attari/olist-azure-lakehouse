@@ -102,6 +102,8 @@ Sécurité : identités managées partout (ADF → stockage, Access Connector Da
 
 ## 5. Modèle de données Gold (schéma en étoile)
 
+Diagramme : [docs/star_schema.svg](docs/star_schema.svg).
+
 | Table | Grain | Colonnes principales |
 |---|---|---|
 | `fact_order_items` | 1 ligne de commande | order_id, order_item_id, product_key, seller_key, customer_key, purchase_date_key, price, freight_value |
