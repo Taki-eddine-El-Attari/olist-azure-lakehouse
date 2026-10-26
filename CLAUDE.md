@@ -1,4 +1,4 @@
-# CLAUDE.md
+# CLAUDE.md — Olist Lakehouse (repo `olist-azure-lakehouse`)
 
 Lis `CAHIER_DES_CHARGES.md` et `AZURE_SETUP.md` avant toute tâche. Les décisions prises sont dans `docs/decisions.md`.
 
