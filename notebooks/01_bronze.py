@@ -1,7 +1,7 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # 01 — Bronze
-# MAGIC CSV du volume `olist.landing.files` → tables `olist.bronze.*`. La logique est dans `src/olist/bronze.py`.
+# MAGIC CSV du volume `olist.landing.raw` → tables `olist.bronze.*`. La logique est dans `src/olist/bronze.py`.
 
 # COMMAND ----------
 

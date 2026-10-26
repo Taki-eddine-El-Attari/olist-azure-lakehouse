@@ -200,7 +200,7 @@ echo $AC_ID   # à coller dans Databricks
    - [ ] Créer, **depuis Catalog Explorer** (aucun calcul nécessaire, donc 0 €) :
      - catalogue `olist` ;
      - schémas `bronze`, `silver`, `gold` avec comme emplacement de stockage l'external location du conteneur du même nom, et `ml` ;
-     - schéma `landing` et, dedans, un **volume externe** `files` sur `abfss://landing@<SA>.dfs.core.windows.net/`. Le code lit les CSV dans `/Volumes/olist/landing/files/olist/` (`src/olist/config.py`), donc le nom du compte de stockage n'est jamais dans le code.
+     - schéma `landing` et, dedans, un **volume externe** `raw` sur `abfss://landing@<SA>.dfs.core.windows.net/olist` (le sous-dossier des CSV, pas la racine du conteneur). Le code lit les CSV dans `/Volumes/olist/landing/raw/` (`src/olist/config.py`), donc le nom du compte de stockage n'est jamais dans le code.
 
    Équivalent SQL (si on dispose déjà d'un calcul) :
 
@@ -211,7 +211,7 @@ CREATE SCHEMA IF NOT EXISTS olist.silver  MANAGED LOCATION 'abfss://silver@<SA>.
 CREATE SCHEMA IF NOT EXISTS olist.gold    MANAGED LOCATION 'abfss://gold@<SA>.dfs.core.windows.net/';
 CREATE SCHEMA IF NOT EXISTS olist.ml;
 CREATE SCHEMA IF NOT EXISTS olist.landing;
-CREATE EXTERNAL VOLUME IF NOT EXISTS olist.landing.files LOCATION 'abfss://landing@<SA>.dfs.core.windows.net/';
+CREATE EXTERNAL VOLUME IF NOT EXISTS olist.landing.raw LOCATION 'abfss://landing@<SA>.dfs.core.windows.net/olist';
 ```
 
 **Plan B** si Unity Catalog n'est pas disponible : clé du compte de stockage dans un **Databricks secret scope** + `spark.conf.set("fs.azure.account.key.<SA>.dfs.core.windows.net", dbutils.secrets.get(...))`. Moins propre, mais fonctionne. Ne jamais mettre la clé en clair dans un notebook ou dans Git.
