@@ -169,8 +169,8 @@ DoD : `az storage fs file list` montre les 9 CSV.
 > Ne crée le workspace « Trial » que le jour où tu es prêt à travailler dessus, sinon les 14 jours filent pour rien.
 
 ```bash
-az databricks workspace create -g $RG -n $DBW -l $LOC --sku premium
-# ou --sku trial
+# Hybrid (défaut) et pas Serverless : le mode Serverless n'accepte pas d'Access Connector (référence az CLI)
+az databricks workspace create -g $RG -n $DBW -l $LOC --sku premium --compute-mode Hybrid --tags projet=olist
 az databricks workspace show -g $RG -n $DBW --query workspaceUrl -o tsv
 ```
 
