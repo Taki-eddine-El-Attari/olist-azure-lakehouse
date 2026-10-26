@@ -159,7 +159,7 @@ olist-azure-lakehouse/
 ├── sql/                          # requêtes d'analyse / vérifications
 ├── adf/                          # JSON exportés par l'intégration Git d'ADF
 ├── powerbi/
-│   ├── olist.pbix
+│   ├── Olist.pbix
 │   ├── measures.dax              # copie texte des mesures (lisible dans Git)
 │   └── screenshots/
 ├── docs/
@@ -353,3 +353,4 @@ Budget estimé total : **15 à 35 USD** sur 100 USD *(estimation non vérifiée,
 | 2026-10-26 | 1 | `bronze.py` (schémas explicites, multiLine, FAILFAST), `eda.py`, tests Bronze ; défauts mesurés dans ADR-004 | 9 tables Bronze = comptes CSV ; retard 8,11 % ; notes 2,57 / 4,29 ; `pytest` : 13 passed ; 0 USD | Phase 2 : Silver + qualité |
 | 2026-10-26 | 2 | `silver.py`, `quality.py` (16 contrôles bloquants + 7 avertissements), quarantaine, tests Silver ; règles dans ADR-005 | 16/16 contrôles bloquants OK ; 42 lignes en quarantaine ; écart paiements expliqué ; `pytest` : 18 passed ; 0 USD | Phase 3 : Gold + maquette Power BI |
 | 2026-10-26 | 3 | `gold.py` (4 dimensions, 2 faits, export Parquet pour Power BI), `sql/checks.sql` (11 contrôles bloquants), `measures.dax` ; définition du retard au jour près (ADR-006) | 11/11 contrôles Gold OK ; retard 6,77 % ; notes 2,27 / 4,29 ; `pytest` : 23 passed ; 0 USD | Maquette Power BI (page 1), puis phase 4 |
+| 2026-10-26 | 3 | Power BI Desktop installé (installateur autonome, le Store est désactivé sur le poste) ; modèle en étoile (relations 1-*, sens unique, aucun lien entre faits) ; page 1 « Les retards détruisent la satisfaction » (`powerbi/screenshots/page1_retards.png`) | Cartes 6,77 % / 2,27 / 4,29 = `sql/checks.sql` ; pics de retard nov. 2017 (12,4 %), fév. 2018 (14,1 %), mars 2018 (19,0 %) ; retard de 21 % (AL) à 3 % (AM) ; 60 % des vendeurs en SP ; 0 USD. **Phase 3 terminée.** | Phase 4 : stockage ADLS + Databricks (premiers coûts) |
