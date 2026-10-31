@@ -1,0 +1,12 @@
+{
+	"name": "ls_databricks",
+	"properties": {
+		"annotations": [],
+		"type": "AzureDatabricks",
+		"typeProperties": {
+			"domain": "https://adb-7405619314968193.13.azuredatabricks.net",
+			"authentication": "MSI",
+			"workspaceResourceId": "/subscriptions/47203597-3eb5-4a42-b41a-e76f78e7480f/resourceGroups/rg-olist/providers/Microsoft.Databricks/workspaces/dbw-olist"
+		}
+	}
+}
