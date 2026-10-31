@@ -27,6 +27,7 @@
 					],
 					"storeSettings": {
 						"type": "AzureBlobFSReadSettings",
+						"recursive": true,
 						"enablePartitionDiscovery": false
 					},
 					"formatSettings": {
@@ -86,7 +87,96 @@
 					"secureOutput": false,
 					"secureInput": false
 				},
-				"userProperties": []
+				"userProperties": [],
+				"typeProperties": {
+					"jobId": "779197906971798"
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_databricks",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "Archive CSVs",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Run olist_pipeline",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "BinarySource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"wildcardFileName": "*.csv",
+							"deleteFilesAfterCompletion": false
+						},
+						"formatSettings": {
+							"type": "BinaryReadSettings"
+						}
+					},
+					"sink": {
+						"type": "BinarySink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						}
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_landing",
+						"type": "DatasetReference",
+						"parameters": {
+							"folder": "olist"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_landing",
+						"type": "DatasetReference",
+						"parameters": {
+							"folder": {
+								"value": "@concat('archive/', if(empty(pipeline().parameters.runDate), formatDateTime(pipeline().TriggerTime, 'yyyy-MM-dd'), pipeline().parameters.runDate))",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			},
+			{
+				"name": "Job failed",
+				"type": "Fail",
+				"dependsOn": [
+					{
+						"activity": "Run olist_pipeline",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"message": {
+						"value": "@activity('Run olist_pipeline').error.message",
+						"type": "Expression"
+					},
+					"errorCode": "JOB_FAILED"
+				}
 			}
 		],
 		"parameters": {
