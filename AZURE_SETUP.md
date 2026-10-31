@@ -301,7 +301,7 @@ Le chemin d'échec 5 relance l'erreur avec un message lisible : sans activité *
 
 **6. Publish**, puis **Add trigger → Trigger now** : un seul run complet (~0,22 USD de serverless, mesuré en phase 4). Capture : *Monitor → Pipeline runs* (run vert) et le détail des activités.
 
-**7. Trigger planifié pour la démo** : dans le pipeline, *Add trigger → New/Edit* → `tr_daily` (Schedule, 1 jour), **Activated = No**, puis Publish. Le créer depuis le pipeline le rattache à `pl_olist_daily` ; créé depuis *Manage → Triggers*, il n'est lié à aucun pipeline (`"pipelines": []` dans le JSON). Un trigger actif relance le job chaque jour.
+**7. Trigger planifié pour la démo** : dans le pipeline, *Add trigger → New/Edit* → `tr_daily` (Schedule, 1 jour), **Status = Stopped** ; dans *Trigger Run Parameters*, `runDate` = `@formatDateTime(trigger().scheduledTime, 'yyyy-MM-dd')` (sans valeur, le Publish échoue : « Parameter 'runDate' has no default value »), puis Publish. Le créer depuis le pipeline le rattache à `pl_olist_daily` ; créé depuis *Manage → Triggers*, il n'est lié à aucun pipeline (`"pipelines": []` dans le JSON). Un trigger actif relance le job chaque jour.
 
 **8. En local** : `git pull`, pour récupérer `adf/` (pipeline, dataset, linked services, trigger) ; aucun secret n'y figure, l'authentification étant par identité managée.
 

@@ -140,7 +140,7 @@ Version observée au premier run : le serverless exécute **Python 3.12** (chemi
 - *Test connection* du linked service Databricks en *Serverless* échoue toujours (`27001`, « Cluster Serverless does not exist ») ; le linked service fonctionne quand même au run.
 - Debug avec l'activité Job désactivée (*Mark as succeeded*) : teste Get Metadata, la condition et la copie sans coût Databricks.
 - **Run complet du 2026-10-31** (`e7d35bfe-227f-4dda-811f-216d89fa2916`, *Trigger now*) : Get Metadata 11 s, Job 8 min 25 s, Copy 16 s, 9 CSV dans `landing/archive/2026-10-31/`. Captures `docs/screenshots/phase5_*.png`. Coût à relever (attendu ~0,22 USD comme en phase 4).
-- Trigger `tr_daily` (quotidien) publié à l'état `Stopped`.
+- Trigger `tr_daily` (quotidien) rattaché à `pl_olist_daily`, publié à l'état `Stopped` ; il passe `runDate = formatDateTime(trigger().scheduledTime, 'yyyy-MM-dd')`, la date prévue et non celle d'un éventuel redémarrage.
 
 **Écarté.** Vérifier les noms des 9 fichiers au lieu de leur nombre (il faudrait un *ForEach* de *Get Metadata* `exists`) : le nombre suffit tant que `landing/olist` ne reçoit que la source Olist. Alerte e-mail sur échec (Azure Monitor) : le *Fail* et le Monitor d'ADF suffisent pour un projet de démonstration.
 
