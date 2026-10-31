@@ -10,6 +10,14 @@
 		"ls_adls_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://stolist73754.dfs.core.windows.net/"
+		},
+		"tr_daily_properties_pl_olist_daily_parameters_runDate": {
+			"type": "string",
+			"defaultValue": "@formatDateTime(trigger().scheduledTime, 'yyyy-MM-dd')"
+		},
+		"tr_daily_properties_pl_olist_daily_parameters_expectedFileCount": {
+			"type": "int",
+			"defaultValue": 9
 		}
 	},
 	"variables": {
@@ -284,7 +292,18 @@
 			"properties": {
 				"annotations": [],
 				"runtimeState": "Stopped",
-				"pipelines": [],
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "pl_olist_daily",
+							"type": "PipelineReference"
+						},
+						"parameters": {
+							"runDate": "[parameters('tr_daily_properties_pl_olist_daily_parameters_runDate')]",
+							"expectedFileCount": "[parameters('tr_daily_properties_pl_olist_daily_parameters_expectedFileCount')]"
+						}
+					}
+				],
 				"type": "ScheduleTrigger",
 				"typeProperties": {
 					"recurrence": {
@@ -296,7 +315,9 @@
 					}
 				}
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/pl_olist_daily')]"
+			]
 		}
 	]
 }

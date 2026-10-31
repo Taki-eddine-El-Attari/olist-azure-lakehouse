@@ -7,6 +7,12 @@
 		},
 		"ls_adls_properties_typeProperties_url": {
 			"value": "https://stolist73754.dfs.core.windows.net/"
+		},
+		"tr_daily_properties_pl_olist_daily_parameters_runDate": {
+			"value": "@formatDateTime(trigger().scheduledTime, 'yyyy-MM-dd')"
+		},
+		"tr_daily_properties_pl_olist_daily_parameters_expectedFileCount": {
+			"value": 9
 		}
 	}
 }
