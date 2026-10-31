@@ -10,6 +10,7 @@
 					"type": "PipelineReference"
 				},
 				"parameters": {
+					"runDate": "@formatDateTime(trigger().scheduledTime, 'yyyy-MM-dd')",
 					"expectedFileCount": 9
 				}
 			}
