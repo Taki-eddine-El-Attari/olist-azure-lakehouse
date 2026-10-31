@@ -311,12 +311,19 @@ Coût : orchestration ADF négligeable pour quelques runs *(non vérifié)* ; le
 
 ## 10. Power BI
 
-> ⚠️ **À réviser en phase 6 (ADR-007)** : pas de cluster. La connexion se fera sur un **SQL warehouse serverless** (2X-Small, arrêt auto court), en mode Import.
+Pas de cluster (ADR-007) : Power BI Desktop lit `olist.gold.*` via un **SQL warehouse serverless**, en mode **Import**. Une fois les données importées, le warehouse s'arrête.
 
-- [ ] Installer **Power BI Desktop** (gratuit, Windows).
-- [ ] Phase 3 (local) : connecter Desktop aux fichiers Parquet/CSV Gold produits en local.
-- [ ] Phase 6 (cloud) : **Obtenir les données → Azure Databricks** → Server hostname + HTTP path du cluster (*Compute → ton cluster → Advanced → JDBC/ODBC*) → authentification *Microsoft Entra ID* → mode **Import** (pas DirectQuery : une fois importé, tu peux éteindre le cluster).
-- [ ] Publier sur **Power BI Service** demande un compte professionnel/scolaire et, pour partager, une licence Pro ou Fabric *(non vérifié pour ton compte étudiant)*. Le livrable minimal est le fichier `.pbix` + captures + export PDF, ce qui ne dépend d'aucune licence.
+**1. Warehouse** (Databricks → *SQL Warehouses*) : le workspace fournit déjà **Serverless Starter Warehouse** ; l'éditer (**⋮ → Edit**) plutôt que d'en créer un. Par défaut, un nouveau warehouse est en *X-Large* avec arrêt après 10 min (Microsoft Learn, « Create a SQL warehouse »). Réglages : **Cluster size 2X-Small**, **Auto stop 5 min** (minimum de l'interface), scaling 1-1. Onglet *Connection details* : *Server hostname* et *HTTP path* → `.env` (`DATABRICKS_HOST`, `DATABRICKS_HTTP_PATH`).
+
+**2. Authentification : jeton d'accès personnel (PAT)**. Le compte Azure est un compte Microsoft personnel (gmail) : la connexion *Microsoft Entra ID* du connecteur le refuse (« Vous ne pouvez pas vous connecter ici avec un compte personnel », constaté le 2026-10-31). Databricks → *Settings → Developer → Access tokens → Generate new token*, commentaire `powerbi-desktop`, **30 jours**. Le jeton n'est saisi que dans Power BI, qui le garde dans son propre stockage local, hors du `.pbix` *(d'après le fonctionnement connu de Power BI Desktop, non vérifié sur ce poste)*. **Révoquer le jeton en phase 9.** Voir ADR-009.
+
+**3. Bascule du `.pbix`** (les relations, mesures et visuels sont attachés aux requêtes existantes, on ne change que leur source) :
+1. *Obtenir les données → Azure Databricks* → hostname + HTTP path, mode **Import** → *Jeton d'accès personnel* → Navigateur `olist` → `gold` → cocher `fact_orders` seul → **Transformer les données**.
+2. Power Query : `fact_orders (2)` → *Accueil → Éditeur avancé* → copier tout ; coller dans l'*Éditeur avancé* de l'ancienne `fact_orders` ; supprimer `fact_orders (2)`.
+3. Même texte collé dans les 5 autres requêtes, en remplaçant `fact_orders` par le nom de la table.
+4. *Fermer et appliquer*. Contrôle : les cartes affichent toujours **6,77 % / 2,27 / 4,29**, et *Paramètres de la source de données* ne liste plus que la source Azure Databricks.
+
+**4. Publier sur Power BI Service** : impossible avec un compte personnel (même refus). Le livrable est le `.pbix` + export PDF + captures, qui ne dépend d'aucune licence.
 
 ---
 

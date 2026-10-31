@@ -19,7 +19,7 @@ Ou à la main : ouvrir le **Microsoft Store**, chercher « Power BI Desktop » e
 - Le compte (et une licence pour partager) ne sert qu'à publier sur Power BI Service, ce qui est hors du livrable minimal (AZURE_SETUP.md étape 10).
 - L'interface suit la langue de Windows. Les noms de menus ci-dessous sont en français.
 
-Source : `data/powerbi/*.parquet`, produits par `python -m olist.gold`. Power BI Desktop n'a pas de lecteur intégré pour un dossier Delta local, d'où cette copie Parquet (un fichier par table). En phase 6, la source devient le cluster Databricks.
+Source en phase 3 : `data/powerbi/*.parquet`, produits par `python -m olist.gold` (Power BI Desktop n'a pas de lecteur intégré pour un dossier Delta local). **Depuis la phase 6, la source est `olist.gold.*` via le SQL warehouse serverless** (AZURE_SETUP.md étape 10) ; les Parquet locaux ne servent plus qu'au travail hors ligne.
 
 ## Étapes
 

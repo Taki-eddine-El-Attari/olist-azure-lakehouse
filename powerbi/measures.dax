@@ -29,4 +29,29 @@ Revenue YoY % =
 VAR RevenueLastYear = CALCULATE ( [Total Revenue], SAMEPERIODLASTYEAR ( dim_date[date] ) )
 RETURN DIVIDE ( [Total Revenue] - RevenueLastYear, RevenueLastYear )
 
+// Phase 6 (pages Logistique and Satisfaction).
+// Same population as Late Rate %: delivered orders with a delivery date.
+Avg Delivery Days =
+CALCULATE ( AVERAGE ( fact_orders[delivery_days] ), fact_orders[order_status] = "delivered", NOT ISBLANK ( fact_orders[is_late] ) )
+
+Avg Estimated Days =
+CALCULATE ( AVERAGE ( fact_orders[estimated_days] ), fact_orders[order_status] = "delivered", NOT ISBLANK ( fact_orders[is_late] ) )
+
+// dim_seller and dim_product only filter fact_order_items. TREATAS passes the visible order_ids on to
+// fact_orders without a bidirectional relationship. An order with 2 sellers counts for both.
+Late Rate % (items) =
+CALCULATE ( [Late Rate %], TREATAS ( VALUES ( fact_order_items[order_id] ), fact_orders[order_id] ) )
+
+Negative Review % =
+DIVIDE (
+    CALCULATE ( [Orders], fact_orders[is_negative_review] = TRUE () ),
+    CALCULATE ( [Orders], NOT ISBLANK ( fact_orders[is_negative_review] ) )
+)
+
+Negative Review % Late =
+CALCULATE ( [Negative Review %], fact_orders[order_status] = "delivered", fact_orders[is_late] = TRUE () )
+
+Negative Review % On Time =
+CALCULATE ( [Negative Review %], fact_orders[order_status] = "delivered", fact_orders[is_late] = FALSE () )
+
 // Phase 7: Predicted Late Orders, once fact_late_predictions exists.

@@ -145,3 +145,21 @@ Version observée au premier run : le serverless exécute **Python 3.12** (chemi
 **Écarté.** Vérifier les noms des 9 fichiers au lieu de leur nombre (il faudrait un *ForEach* de *Get Metadata* `exists`) : le nombre suffit tant que `landing/olist` ne reçoit que la source Olist. Alerte e-mail sur échec (Azure Monitor) : le *Fail* et le Monitor d'ADF suffisent pour un projet de démonstration.
 
 **Limite.** L'ID d'abonnement et l'ID de tenant figurent dans `adf/` (ressource du workspace, identité de la factory) : ce sont des identifiants, pas des secrets.
+
+## ADR-009 — Power BI sur SQL warehouse, authentification par jeton (2026-10-31)
+
+**Contexte.** Phase 6 : Power BI Desktop doit lire `olist.gold.*` dans Databricks. Le compte Azure est un compte Microsoft personnel (gmail, annuaire par défaut `takieddineelattarigmail.onmicrosoft.com`). La connexion *Microsoft Entra ID* du connecteur Azure Databricks le refuse : « Vous ne pouvez pas vous connecter ici avec un compte personnel ».
+
+**Décision.**
+- Calcul : le **Serverless Starter Warehouse** déjà fourni par le workspace, réglé au minimum (2X-Small, arrêt après 5 min) plutôt qu'un nouveau warehouse, dont le défaut est X-Large.
+- Mode **Import** : le warehouse ne tourne que pendant une actualisation. Constaté : il démarre à la connexion et s'arrête seul quelques minutes après (capture `docs/screenshots/phase6_sql_warehouse.png`).
+- Authentification : **jeton d'accès personnel Databricks**, 30 jours, saisi uniquement dans Power BI Desktop (jamais dans Git ni dans `.env`), **révoqué en phase 9**.
+- Bascule du `.pbix` en changeant seulement la source des 6 requêtes (Éditeur avancé) : relations, mesures et visuels conservés.
+
+**Résultat.** Mêmes chiffres qu'avec les Parquet locaux : 6,77 % / 2,27 / 4,29 ; seule la source Azure Databricks reste dans le fichier (captures `powerbi/screenshots/phase6_*.png`).
+
+**Options écartées.** Créer un utilisateur professionnel dans l'annuaire par défaut et lui donner les droits sur le workspace, `olist.gold` et le warehouse : propre (Entra ID, pas de jeton) mais plusieurs étapes de plus pour un livrable identique. Service principal en OAuth M2M : même coût de mise en place, et un secret client à gérer.
+
+**Écart assumé avec « aucun secret ».** ADF et l'accès au stockage restent en identité managée ; seul le poste de BI utilise un jeton, à durée courte. En production : comptes professionnels et Entra ID (SSO), ou service principal.
+
+**Conséquence.** Pas de publication sur Power BI Service, qui demande un compte professionnel ou scolaire : le livrable reste `.pbix` + PDF + captures (ADR-003).
