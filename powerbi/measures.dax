@@ -29,7 +29,9 @@ Revenue YoY % =
 VAR RevenueLastYear = CALCULATE ( [Total Revenue], SAMEPERIODLASTYEAR ( dim_date[date] ) )
 RETURN DIVIDE ( [Total Revenue] - RevenueLastYear, RevenueLastYear )
 
-// Phase 6 (pages Logistique and Satisfaction).
+// Phase 6 (pages Logistique and Satisfaction). Expected without filters (Spark on local Gold, 2026-10-31):
+// Avg Delivery Days 12.5, Avg Estimated Days 24.37, Late Rate % (items) 6.77 %,
+// Negative Review % 14.69 %, Late 62.4 %, On Time 9.27 %. Seller state SP 7.31 %; bed_bath_table 7.43 %.
 // Same population as Late Rate %: delivered orders with a delivery date.
 Avg Delivery Days =
 CALCULATE ( AVERAGE ( fact_orders[delivery_days] ), fact_orders[order_status] = "delivered", NOT ISBLANK ( fact_orders[is_late] ) )
