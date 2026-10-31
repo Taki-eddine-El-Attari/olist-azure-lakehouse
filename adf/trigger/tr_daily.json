@@ -3,7 +3,18 @@
 	"properties": {
 		"annotations": [],
 		"runtimeState": "Stopped",
-		"pipelines": [],
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "pl_olist_daily",
+					"type": "PipelineReference"
+				},
+				"parameters": {
+					"runDate": "@formatDateTime(trigger().scheduledTime, 'yyyy-MM-dd')",
+					"expectedFileCount": 9
+				}
+			}
+		],
 		"type": "ScheduleTrigger",
 		"typeProperties": {
 			"recurrence": {
