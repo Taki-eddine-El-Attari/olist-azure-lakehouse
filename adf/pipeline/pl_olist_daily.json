@@ -1,0 +1,103 @@
+{
+	"name": "pl_olist_daily",
+	"properties": {
+		"activities": [
+			{
+				"name": "Check landing files",
+				"type": "GetMetadata",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "ds_landing",
+						"type": "DatasetReference",
+						"parameters": {
+							"folder": "olist"
+						}
+					},
+					"fieldList": [
+						"childItems"
+					],
+					"storeSettings": {
+						"type": "AzureBlobFSReadSettings",
+						"enablePartitionDiscovery": false
+					},
+					"formatSettings": {
+						"type": "BinaryReadSettings"
+					}
+				}
+			},
+			{
+				"name": "Files present",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Check landing files",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(length(activity('Check landing files').output.childItems), pipeline().parameters.expectedFileCount)",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "Missing files",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": {
+									"value": "@concat('Expected ', string(pipeline().parameters.expectedFileCount), ' files in landing/olist, found ', string(length(activity('Check landing files').output.childItems)))",
+									"type": "Expression"
+								},
+								"errorCode": "MISSING_FILES"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Run olist_pipeline",
+				"type": "DatabricksJob",
+				"dependsOn": [
+					{
+						"activity": "Files present",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": []
+			}
+		],
+		"parameters": {
+			"runDate": {
+				"type": "string"
+			},
+			"expectedFileCount": {
+				"type": "int",
+				"defaultValue": 9
+			}
+		},
+		"annotations": []
+	}
+}
