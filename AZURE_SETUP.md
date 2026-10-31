@@ -234,38 +234,78 @@ Règles :
 
 ## 9. Azure Data Factory
 
-> ⚠️ **À réviser en phase 5 (ADR-007)** : pas de cluster existant. ADF lancera le job serverless `olist_pipeline` avec l'activité *Databricks Job* (piste notée dans ADR-003). Les mentions de cluster ci-dessous sont obsolètes.
+Pas de cluster (ADR-007) : ADF lance le job serverless `olist_pipeline` avec l'activité **Job** d'Azure Databricks (type JSON `DatabricksJob`), qui « tourne automatiquement sur serverless » d'après Microsoft Learn (« Transform data with Databricks Job »).
+
+### Bloc A — factory et rôles (fait le 2026-10-26)
 
 ```bash
 az datafactory create -g $RG -n $ADF -l $LOC
 ADF_PID=$(az datafactory show -g $RG -n $ADF --query identity.principalId -o tsv)
 
-# ADF lit/écrit le stockage via son identité managée
+# Données : uniquement le conteneur landing (lecture des CSV + archive)
 az role assignment create --assignee-object-id $ADF_PID --assignee-principal-type ServicePrincipal \
-  --role "Storage Blob Data Contributor" --scope $SA_ID
+  --role "Storage Blob Data Contributor" --scope "$SA_ID/blobServices/default/containers/landing"
 
-# ADF lance des notebooks Databricks via son identité managée
+# Databricks : Contributor sur le seul workspace
 DBW_ID=$(az databricks workspace show -g $RG -n $DBW --query id -o tsv)
 az role assignment create --assignee-object-id $ADF_PID --assignee-principal-type ServicePrincipal \
   --role "Contributor" --scope $DBW_ID
 ```
 
-Dans **ADF Studio** (portail → la factory → *Launch studio*) :
+Le rôle Contributor sur le workspace fait de l'identité d'ADF un administrateur du workspace à sa première connexion. Le job s'exécute avec l'identité *Run as* du job (toi), donc ADF n'a besoin d'aucun droit Unity Catalog *(déduit du fonctionnement des jobs, à confirmer au premier run)*.
 
-- [ ] **Manage → Git configuration** : relier au repo GitHub (dossier `/adf`). Tout le JSON des pipelines est alors versionné : c'est une preuve visible dans le repo.
-- [ ] **Linked service `ls_adls`** : Azure Data Lake Storage Gen2, authentification *System-assigned managed identity*, URL `https://<SA>.dfs.core.windows.net`.
-- [ ] **Linked service `ls_databricks`** : Azure Databricks, authentification *Managed service identity*, workspace URL, **Existing interactive cluster** = ton Cluster ID. (Fallback : *Access token* Databricks stocké dans Key Vault.)
-  > ⚠️ *(à vérifier en phase 5)* Le cluster est en mode *Dedicated / Single user* assigné à **toi**. L'identité managée d'ADF est un **autre principal** : elle risque d'être refusée sur ce cluster (le fait d'être seul sur le projet n'y change rien). Si le Debug échoue sur ce point, passer au fallback *Access token* (le run s'exécute alors en ton nom).
-- [ ] **Datasets** : `ds_csv_landing` (DelimitedText, paramètre `fileName`) et `ds_bronze` (Parquet ou DelimitedText dans `bronze/olist/`).
-- [ ] **Pipeline `pl_olist_daily`** :
-  1. *ForEach* sur la liste des 9 fichiers → *Copy data* landing → bronze.
-  2. *Notebook* `02_silver` (ls_databricks).
-  3. *Notebook* `03_gold`.
-  4. *Notebook* `05_ml_score` (prédictions batch).
-  5. (option) *Web activity* / e-mail en cas d'échec.
-- [ ] **Debug** une fois, puis **Publish**. Ajouter un **trigger** planifié uniquement pour la démo, puis le **désactiver** (sinon il rallume le cluster chaque jour).
+### Bloc B — ADF Studio (portail → `adf-olist-42747` → *Launch studio*)
 
-Coût : ADF facture à l'exécution d'activité et à la durée de copie ; pour quelques exécutions → **moins de 1 USD** *(non vérifié)*. Le coût réel d'un run = le temps où il allume le cluster Databricks.
+Ordre important : **Git d'abord**, pour que chaque objet créé ensuite soit commité dans `/adf`.
+
+**1. Manage → Git configuration → Configure**
+- Type *GitHub*, compte `Taki-eddine-El-Attari`, repo `olist-azure-lakehouse`.
+- Collaboration branch `main`, publish branch `adf_publish`, root folder `/adf`.
+- *Import existing resources* : oui (vers `main`).
+- Chaque **Save all** fait un commit sur `main` dans GitHub : faire `git pull` en local ensuite.
+
+**2. Manage → Linked services → New**
+- `ls_adls` : *Azure Data Lake Storage Gen2* ; authentification *System-assigned managed identity* ; URL `https://<SA>.dfs.core.windows.net`. *Test connection* : choisir **To file path** → `landing/olist` (le rôle ne couvre que le conteneur `landing`, un test à la racine du compte peut échouer).
+- `ls_databricks` : *Azure Databricks* ; workspace choisi *From Azure subscription* (`dbw-olist`) ; authentification *Managed service identity* ; cluster : **Serverless**. **Ne pas cliquer sur *Test connection*** : il échoue toujours avec `27001 ... Cluster Serverless does not exist` (le test cherche un cluster interactif portant ce nom). Cliquer directement **Create** ; le vrai test est le run du job (constaté le 2026-10-31).
+
+**3. Author → Datasets → New → ADLS Gen2 → Binary** : `ds_landing`
+- Linked service `ls_adls` ; paramètre `folder` (String).
+- File path : file system `landing`, directory `@dataset().folder`, fichier vide.
+
+**4. Author → Pipelines → New** : `pl_olist_daily`
+- Paramètres : `runDate` (String, vide = date du déclenchement), `expectedFileCount` (Int, `9`).
+- Activités :
+
+| # | Activité | Nom | Réglages | Lien |
+|---|---|---|---|---|
+| 1 | Get Metadata | `Check landing files` | dataset `ds_landing`, folder `olist` ; field list : *Child items* | — |
+| 2 | If Condition | `Files present` | expression ci-dessous ; **False** : une activité *Fail* `Missing files` (message ci-dessous, code `MISSING_FILES`) ; **True** : vide | succès de 1 |
+| 3 | Job (Azure Databricks) | `Run olist_pipeline` | linked service `ls_databricks` ; *Settings* → job `olist_pipeline` | succès de 2 |
+| 4 | Copy data | `Archive CSVs` | source `ds_landing` folder `olist`, *Wildcard file path* `*.csv` ; sink `ds_landing` folder = expression archive | succès de 3 |
+| 5 | Fail | `Job failed` | message ci-dessous, code `JOB_FAILED` | **échec** de 3 |
+
+Expressions :
+
+```text
+Files present (If)  : @equals(length(activity('Check landing files').output.childItems), pipeline().parameters.expectedFileCount)
+Missing files (Fail): @concat('Expected ', string(pipeline().parameters.expectedFileCount), ' files in landing/olist, found ', string(length(activity('Check landing files').output.childItems)))
+Archive folder      : @concat('archive/', if(empty(pipeline().parameters.runDate), formatDateTime(pipeline().TriggerTime, 'yyyy-MM-dd'), pipeline().parameters.runDate))
+Job failed (Fail)   : @activity('Run olist_pipeline').error.message
+```
+
+Le chemin d'échec 5 relance l'erreur avec un message lisible : sans activité *Fail*, un chemin « on failure » qui réussit rendrait le run vert.
+
+**5. Debug sans coût Databricks**
+- Clic droit sur `Run olist_pipeline` → *Deactivate* (état *Mark as succeeded*), puis **Debug**. Vérifie Get Metadata (9 fichiers), la condition et la copie dans `landing/archive/<date>/`.
+- Réactiver l'activité.
+
+**6. Publish**, puis **Add trigger → Trigger now** : un seul run complet (~0,22 USD de serverless, mesuré en phase 4). Capture : *Monitor → Pipeline runs* (run vert) et le détail des activités.
+
+**7. Trigger planifié pour la démo** : dans le pipeline, *Add trigger → New/Edit* → `tr_daily` (Schedule, 1 jour), **Activated = No**, puis Publish. Le créer depuis le pipeline le rattache à `pl_olist_daily` ; créé depuis *Manage → Triggers*, il n'est lié à aucun pipeline (`"pipelines": []` dans le JSON). Un trigger actif relance le job chaque jour.
+
+**8. En local** : `git pull`, pour récupérer `adf/` (pipeline, dataset, linked services, trigger) ; aucun secret n'y figure, l'authentification étant par identité managée.
+
+Coût : orchestration ADF négligeable pour quelques runs *(non vérifié)* ; le vrai coût d'un run est le job serverless.
 
 ---
 
@@ -328,3 +368,5 @@ az group delete --name $RG --yes --no-wait
 | `MissingSubscriptionRegistration` | Provider non enregistré | Étape 2 |
 | `AADSTS50076` + « No subscriptions found » à `az login` | MFA exigée, non faite au login | `az login --tenant <TENANT_ID>` (étape 0) |
 | Crédit qui baisse sans travailler | Cluster allumé, trigger ADF actif | Terminate + désactiver trigger |
+| Coût quotidien (~1 USD/jour) dans `databricks-rg-*` sans exécution | NAT Gateway créée par un workspace *Hybrid* (No Public IP, ADR-007) | Accepté jusqu'à la phase 9, puis workspace supprimé ou recréé en *Serverless* |
+| `27001 Cluster Serverless does not exist` au *Test connection* ADF | Le test ne gère pas l'option Serverless | Ignorer, créer le linked service et tester par un run (étape 9) |

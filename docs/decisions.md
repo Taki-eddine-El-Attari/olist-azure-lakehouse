@@ -117,5 +117,31 @@ Conséquences : `sql/checks.sql`, `measures.dax` et la cible ML (phase 7) utilis
 - L'image Docker reste alignée sur DBR 18 LTS ML. Le serverless suit sa propre version d'environnement : l'alignement des versions devient approximatif, à vérifier au premier run (version de Python et de Spark affichées).
 - Prix serverless Azure **non vérifié** (page de prix officielle trop lourde à charger, sources tierces contradictoires) : le coût réel du premier run sera mesuré et noté avant d'aller plus loin.
 
-**Premier run serverless (2026-10-26)** : job `olist_pipeline` réussi de bout en bout. Mêmes chiffres qu'en local à l'unité près (Bronze = CSV, Silver 98 673 avis et 42 lignes en quarantaine, 16 `pass` / 7 `warn`, Gold 11/11 dont 6,77 %, 2,27, 4,29). Le code testé en Docker a tourné sur Databricks sans modification. La tâche Bronze a pris 4 min 14 s, contre ~47 s en local : démarrage du serverless en mode standard et écritures sur ADLS. Coût à relever dans le suivi du crédit (délai de quelques heures). Captures : `docs/screenshots/phase4_*.png`.
+**Premier run serverless (2026-10-26)** : job `olist_pipeline` réussi de bout en bout. Mêmes chiffres qu'en local à l'unité près (Bronze = CSV, Silver 98 673 avis et 42 lignes en quarantaine, 16 `pass` / 7 `warn`, Gold 11/11 dont 6,77 %, 2,27, 4,29). Le code testé en Docker a tourné sur Databricks sans modification. La tâche Bronze a pris 4 min 14 s, contre ~47 s en local : démarrage du serverless en mode standard et écritures sur ADLS. Captures : `docs/screenshots/phase4_*.png`.
+
+**Coût réel (Cost analysis, relevé le 2026-10-31)** : le run a coûté **0,22 USD** (service *Azure Databricks*, facturé le 26/10 seulement, inchangé au 31/10). Mais le cumul atteint **5,42 USD** au 31/10, dont 4,67 USD de *NAT Gateway* et 0,52 USD de *Virtual Network* dans le groupe managé `databricks-rg-dbw-olist-*`, sans aucune exécution. Cause (Microsoft Learn, « Enable secure cluster connectivity ») : un workspace *Hybrid* créé avec le réseau par défaut active la connectivité sécurisée (No Public IP) et Databricks crée une NAT Gateway, facturée à l'heure, pour un calcul classique que l'abonnement ne peut pas lancer (ADR-007). Le *Virtual Network* est probablement l'IP publique de cette NAT Gateway *(déduit, non vérifié)*. Rythme mesuré : ~1 USD/jour, soit ~30 USD/mois, au-dessus du budget de 20 USD. Captures : `docs/screenshots/phase4_cost_daily_2026-10-26.png`, `docs/screenshots/cost_cumulative_2026-10-31.png`.
 Version observée au premier run : le serverless exécute **Python 3.12** (chemin `/databricks/python/lib/python3.12/` dans un avertissement), comme l'image Docker. Avertissement attendu sans conséquence : `No Partition Defined for Window operation`, causé par les clés de substitution `row_number` globales (limite notée dans `gold.py`).
+
+## ADR-008 — Orchestration ADF du job serverless (2026-10-31)
+
+**Contexte.** Pas de cluster (ADR-007), donc pas d'activité *Notebook* sur un cluster existant (ADR-002, ADR-003). Le cahier des charges prévoyait une *Copy* landing → bronze dans ADF ; or la Bronze est déjà écrite par `01_bronze` depuis le volume `olist.landing.raw`, avec schéma explicite et `FAILFAST` (ADR-004). Copier en plus dans `bronze` dupliquerait la couche.
+
+**Décision.** Pipeline `pl_olist_daily` (JSON dans `adf/`, versionné par l'intégration Git d'ADF, branche `main`, dossier `/adf`) :
+
+1. *Get Metadata* `Check landing files` : liste `landing/olist`.
+2. *If Condition* `Files present` : le nombre de fichiers doit valoir le paramètre `expectedFileCount` (9) ; sinon *Fail* `MISSING_FILES` avec le nombre trouvé.
+3. *Job* `Run olist_pipeline` (type `DatabricksJob`, linked service `ls_databricks` en identité managée, option *Serverless*) : lance le job 01 → 03.
+4. *Copy* `Archive CSVs` : copie des CSV vers `landing/archive/<runDate ou date du déclenchement>/`.
+5. Sur échec du job : *Fail* `JOB_FAILED` qui reprend le message d'erreur du job. Sans activité *Fail*, un chemin « sur échec » qui réussit rendrait le run vert.
+
+**Identité managée acceptée.** L'identité d'ADF (Contributor sur le seul workspace) lance le job sans token : le fallback *Access token* d'ADR-002 n'a pas servi. Rôle de données limité au conteneur `landing`.
+
+**Constats.**
+- *Test connection* du linked service Databricks en *Serverless* échoue toujours (`27001`, « Cluster Serverless does not exist ») ; le linked service fonctionne quand même au run.
+- Debug avec l'activité Job désactivée (*Mark as succeeded*) : teste Get Metadata, la condition et la copie sans coût Databricks.
+- **Run complet du 2026-10-31** (`e7d35bfe-227f-4dda-811f-216d89fa2916`, *Trigger now*) : Get Metadata 11 s, Job 8 min 25 s, Copy 16 s, 9 CSV dans `landing/archive/2026-10-31/`. Captures `docs/screenshots/phase5_*.png`. Coût à relever (attendu ~0,22 USD comme en phase 4).
+- Trigger `tr_daily` (quotidien) publié à l'état `Stopped`.
+
+**Écarté.** Vérifier les noms des 9 fichiers au lieu de leur nombre (il faudrait un *ForEach* de *Get Metadata* `exists`) : le nombre suffit tant que `landing/olist` ne reçoit que la source Olist. Alerte e-mail sur échec (Azure Monitor) : le *Fail* et le Monitor d'ADF suffisent pour un projet de démonstration.
+
+**Limite.** L'ID d'abonnement et l'ID de tenant figurent dans `adf/` (ressource du workspace, identité de la factory) : ce sont des identifiants, pas des secrets.
