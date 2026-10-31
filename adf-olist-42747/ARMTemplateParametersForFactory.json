@@ -1,0 +1,12 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "adf-olist-42747"
+		},
+		"ls_adls_properties_typeProperties_url": {
+			"value": "https://stolist73754.dfs.core.windows.net/"
+		}
+	}
+}

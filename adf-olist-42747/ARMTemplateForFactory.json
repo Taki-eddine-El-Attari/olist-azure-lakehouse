@@ -1,0 +1,281 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "adf-olist-42747"
+		},
+		"ls_adls_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://stolist73754.dfs.core.windows.net/"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_olist_daily')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Check landing files",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "ds_landing",
+								"type": "DatasetReference",
+								"parameters": {
+									"folder": "olist"
+								}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "Files present",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "Check landing files",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@equals(length(activity('Check landing files').output.childItems), pipeline().parameters.expectedFileCount)",
+								"type": "Expression"
+							},
+							"ifFalseActivities": [
+								{
+									"name": "Missing files",
+									"type": "Fail",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"message": {
+											"value": "@concat('Expected ', string(pipeline().parameters.expectedFileCount), ' files in landing/olist, found ', string(length(activity('Check landing files').output.childItems)))",
+											"type": "Expression"
+										},
+										"errorCode": "MISSING_FILES"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "Run olist_pipeline",
+						"type": "DatabricksJob",
+						"dependsOn": [
+							{
+								"activity": "Files present",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"jobId": "779197906971798"
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_databricks",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "Archive CSVs",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Run olist_pipeline",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "BinarySource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"wildcardFileName": "*.csv",
+									"deleteFilesAfterCompletion": false
+								},
+								"formatSettings": {
+									"type": "BinaryReadSettings"
+								}
+							},
+							"sink": {
+								"type": "BinarySink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								}
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "ds_landing",
+								"type": "DatasetReference",
+								"parameters": {
+									"folder": "olist"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ds_landing",
+								"type": "DatasetReference",
+								"parameters": {
+									"folder": {
+										"value": "@concat('archive/', if(empty(pipeline().parameters.runDate), formatDateTime(pipeline().TriggerTime, 'yyyy-MM-dd'), pipeline().parameters.runDate))",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "Job failed",
+						"type": "Fail",
+						"dependsOn": [
+							{
+								"activity": "Run olist_pipeline",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"message": {
+								"value": "@activity('Run olist_pipeline').error.message",
+								"type": "Expression"
+							},
+							"errorCode": "JOB_FAILED"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"runDate": {
+						"type": "string"
+					},
+					"expectedFileCount": {
+						"type": "int",
+						"defaultValue": 9
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_landing')]",
+				"[concat(variables('factoryId'), '/linkedServices/ls_databricks')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_landing')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adls",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"folder": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "Binary",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": {
+							"value": "@dataset().folder",
+							"type": "Expression"
+						},
+						"fileSystem": "landing"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adls')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_adls')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('ls_adls_properties_typeProperties_url')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_databricks')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureDatabricks",
+				"typeProperties": {
+					"domain": "https://adb-7405619314968193.13.azuredatabricks.net",
+					"authentication": "MSI",
+					"workspaceResourceId": "/subscriptions/47203597-3eb5-4a42-b41a-e76f78e7480f/resourceGroups/rg-olist/providers/Microsoft.Databricks/workspaces/dbw-olist"
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}
