@@ -1,0 +1,15 @@
+{
+	"name": "adf-olist-42747",
+	"properties": {
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true
+		}
+	},
+	"location": "switzerlandnorth",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "c2e6c8b9-0e31-42a5-8dae-54c59fb3affc",
+		"tenantId": "1eb1d06e-2a00-4b20-b4a4-117edb9611ae"
+	}
+}
