@@ -204,4 +204,6 @@ Variables les plus utiles du champion (gain) : historique de l'axe (nombre 15 %,
 
 **Premier run Databricks (2026-11-01, job `olist_train`).** Réussi : 5 runs dans `/Shared/olist_late_delivery`, champion `lightgbm_no_recent` enregistré en `olist.ml.late_delivery` v1, alias `champion`, seuil 0,1314 identique au run local (même données, même graine : les métriques sont très probablement les mêmes, non relues une à une). Captures `docs/screenshots/phase7_*.png`.
 
+**Scoring dans le pipeline (2026-11-01).** Tâche `05_ml_score` ajoutée après `03_gold` dans le job `olist_pipeline` (même environnement). Run ADF `0399eb7d-8de9-40d8-8e32-be2ccbfd24ad` vert : job 14 min 35 s (contre 8 min 25 s sans scoring), archive 20 s. `fact_late_predictions` = mêmes chiffres qu'en local (fit 77 867, test 18 603 dont 20,2 % signalées, non étiquetées 2 971). Captures `docs/screenshots/phase7_adf_run_with_scoring.png`, `phase7_score_output.png`, `phase7_job_tasks.png`.
+
 **Écarté pour l'instant.** Recherche d'hyperparamètres (à faire sur le backtest, jamais sur le test) ; SHAP ; graphiques de courbes PR dans MLflow (importance en JSON seulement) ; proximité des fêtes ; entraînement limité aux commandes déjà livrées à la date de coupure (le modèle final voit des retards de fin de période qu'on n'aurait pas encore connus).
