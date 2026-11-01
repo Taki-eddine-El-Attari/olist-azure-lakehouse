@@ -2,3 +2,10 @@
 pyspark==4.1.1  # delta-spark 4.2.0 requires pyspark<=4.1.1
 delta-spark==4.2.0
 pytest==8.3.5
+# ML (phase 7): same versions as the serverless "ML base environment", version 6, where the jobs run (ADR-010).
+pandas==2.3.3
+numpy==2.3.4
+pyarrow==21.0.0
+scikit-learn==1.7.2
+lightgbm==4.6.0
+mlflow-skinny==3.12.0

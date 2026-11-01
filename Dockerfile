@@ -1,8 +1,9 @@
 # Local dev image aligned on Databricks Runtime 18 LTS ML (Python 3.12, Java 21, Spark 4.1, Delta 4.2).
 FROM python:3.12-slim-trixie
 
+# libgomp1: OpenMP runtime needed by the lightgbm wheel.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends openjdk-21-jre-headless \
+    && apt-get install -y --no-install-recommends openjdk-21-jre-headless libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /tmp/requirements.txt

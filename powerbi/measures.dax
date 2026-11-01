@@ -60,4 +60,20 @@ CALCULATE ( [Negative Review %], fact_orders[order_status] = "delivered", fact_o
 Negative Review % On Time =
 CALCULATE ( [Negative Review %], fact_orders[order_status] = "delivered", fact_orders[is_late] = FALSE () )
 
-// Phase 7: Predicted Late Orders, once fact_late_predictions exists.
+// Phase 7 (page Prédictions). Needs fact_late_predictions related 1-1 to fact_orders on order_id,
+// filter direction fact_orders → fact_late_predictions. Judge the model on dataset = "test" only:
+// the other rows were used to fit it. Expected (local run, 2026-11-01): precision 4.9 %, recall 27.4 %.
+Predicted Late Orders =
+CALCULATE ( COUNTROWS ( fact_late_predictions ), fact_late_predictions[predicted_late] = TRUE () )
+
+Test Precision =
+DIVIDE (
+    CALCULATE ( [Predicted Late Orders], fact_late_predictions[dataset] = "test", fact_orders[is_late] = TRUE () ),
+    CALCULATE ( [Predicted Late Orders], fact_late_predictions[dataset] = "test" )
+)
+
+Test Recall =
+DIVIDE (
+    CALCULATE ( [Predicted Late Orders], fact_late_predictions[dataset] = "test", fact_orders[is_late] = TRUE () ),
+    CALCULATE ( COUNTROWS ( fact_late_predictions ), fact_late_predictions[dataset] = "test", fact_orders[is_late] = TRUE () )
+)

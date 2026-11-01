@@ -165,3 +165,41 @@ Version observée au premier run : le serverless exécute **Python 3.12** (chemi
 **Coût.** Le 31/10, *Azure Databricks* = 1,60 USD pour le job lancé par ADF et le warehouse réunis. Si le job coûte comme en phase 4 (0,22 USD, même code), le warehouse a coûté ~1,4 USD *(déduit, non séparé)* : plus que prévu pour un import de quelques minutes, peut-être parce qu'il a tourné à sa taille d'origine avant d'être réduit. Pour séparer : Cost analysis, regrouper par *Meter*. La NAT Gateway coûte 1,20 USD/jour (avec *Virtual Network*), plus que tout le calcul.
 
 **Conséquence.** Pas de publication sur Power BI Service, qui demande un compte professionnel ou scolaire : le livrable reste `.pbix` + PDF + captures (ADR-003).
+
+## ADR-010 — Modèle de retard : features au moment de l'achat, backtest glissant, MLflow (2026-11-01)
+
+**Cible et population.** `is_late` lu dans `gold.fact_orders` (au jour près, ADR-006), sur les commandes `delivered` avec date de livraison : la même population que `Late Rate %`. Une ligne par commande ; toutes les commandes sont scorées, y compris les non livrées.
+
+**Features** (`src/olist/ml/features.py`), uniquement des informations connues au clic « acheter » :
+- commande : délai promis (`estimated - purchase`), valeur, fret, ratio fret / valeur, nb d'articles et de vendeurs, poids et volume totaux, type de paiement, échéances, jour de semaine et heure ;
+- géographie : état du client (adresse **de cette commande**, pas la dernière adresse de `dim_customer`), état du vendeur principal (article le plus cher), distance client-vendeur maximale (haversine sur la géolocalisation médiane) ;
+- historique : pour le vendeur et pour l'axe état vendeur → état client, nombre de commandes **déjà livrées avant l'achat** et part en retard. Une commande achetée plus tôt mais encore en route n'est pas comptée : son issue était inconnue (testé dans `tests/test_ml_features.py`).
+- Exclus : dates de livraison et de remise au transporteur, statut final, avis, tout agrégat sur toute la période.
+
+**Protocole.** Test = commandes achetées à partir du 2018-06-01, lu seulement pour le rapport final. Avant : **backtest glissant** sur 8 mois (oct. 2017 → mai 2018) ; chaque mois est prédit par un modèle entraîné sur tout le passé. Champion = meilleur *lift* moyen (PR-AUC / taux de retard du mois, comparable entre mois), qui doit battre la règle de base. Le modèle final suit la même recette (entraîné sur tout ce qui précède le test) ; son seuil maximise le F1 sur les prédictions hors échantillon du backtest.
+
+**Pourquoi pas la validation fixe prévue (avril-mai 2018).** Le taux de retard dérive fortement : 7,9 % sur l'entraînement (qui contient le pic de février-mars 2018), 5,5 % en avril-mai, 3,6 % sur le test. Sur une seule fenêtre de 2 mois, le classement des modèles s'inversait d'une variante à l'autre.
+
+**Itérations, en toute transparence.** Le test a été regardé 4 fois pendant la mise au point : (1) avec `purchase_month` et une validation fixe : aucun modèle ne battait la règle en validation ; (2) mois remplacé par l'historique d'axe et le taux de retard des 30 derniers jours : meilleur en validation, pire au test ; (3) choix par backtest ; (4) modèle final aligné sur la recette du backtest. Chaque changement a une raison de protocole (le mois mémorise un choc propre à 2018 ; une fenêtre de validation unique est instable ; le modèle final doit suivre la recette évaluée), et le choix du champion n'utilise jamais le test. Le chiffre de test reste néanmoins légèrement optimiste.
+
+**Résultats** (run local du 2026-11-01, 77 867 commandes avant le test, 18 603 en test, retard 3,6 %) :
+
+| Modèle | Lift backtest (mois battant la règle) | PR-AUC test | ROC-AUC test | Précision / rappel test |
+|---|---|---|---|---|
+| Règle : km par jour promis | 1,84 | 0,050 | 0,500 | 3,9 % / 40,5 % |
+| Régression logistique (pondérée) | 1,99 (6/8) | **0,074** | **0,702** | 6,2 % / 70,7 % |
+| LightGBM | 2,20 (5/8) | 0,038 | 0,495 | 4,0 % / 26,9 % |
+| LightGBM pondéré | 2,21 (5/8) | 0,038 | 0,500 | 3,9 % / 18,2 % |
+| **LightGBM sans taux récent (champion)** | **2,25 (7/8)** | 0,056 | 0,538 | 4,9 % / 27,4 % |
+
+Variables les plus utiles du champion (gain) : historique de l'axe (nombre 15 %, part en retard 14 %), état du client 14 %, délai promis 11 %, catégorie 8 %, distance 7 %.
+
+**Lecture honnête.** Le champion bat la règle au test (0,056 contre 0,050), mais de peu : prédire un retard dès la commande reste difficile ici, parce que les retards viennent surtout de chocs de période (pic de février-mars 2018) que les données de commande ne voient pas. La régression logistique généralise mieux sur une période calme ; elle n'a pas été promue après coup, ce serait choisir sur le test. Production : signaux externes (calendrier des fêtes, capacité transporteurs, météo, grèves), réentraînement mensuel, suivi de la dérive.
+
+**MLflow.** Expérience `/Shared/olist_late_delivery` sur Databricks (`olist_late_delivery` en local, dossier `mlruns/` ignoré par Git) ; 5 runs avec paramètres, métriques backtest et test, importance des variables. Modèle enregistré dans Unity Catalog `olist.ml.late_delivery`, alias `champion`, seuil en tag `threshold`. Le seuil n'est pas une probabilité calibrée commune à toutes les périodes : sur le test, il signale 20 % des commandes.
+
+**Scoring.** `score.py` → `gold.fact_late_predictions` (`order_id`, `model_version`, `proba_late`, `predicted_late`, `dataset` = `fit` / `test` / `unlabeled`, `scored_at`). Power BI juge le modèle sur `dataset = "test"` uniquement.
+
+**Environnement.** Serverless version 6, **base ML** (LightGBM absent de la base standard) ; Docker épinglé sur les mêmes versions (pandas 2.3.3, numpy 2.3.4, pyarrow 21.0.0, scikit-learn 1.7.2, lightgbm 4.6.0, mlflow-skinny 3.12.0) + `libgomp1` pour LightGBM.
+
+**Écarté pour l'instant.** Recherche d'hyperparamètres (à faire sur le backtest, jamais sur le test) ; SHAP ; graphiques de courbes PR dans MLflow (importance en JSON seulement) ; proximité des fêtes ; entraînement limité aux commandes déjà livrées à la date de coupure (le modèle final voit des retards de fin de période qu'on n'aurait pas encore connus).

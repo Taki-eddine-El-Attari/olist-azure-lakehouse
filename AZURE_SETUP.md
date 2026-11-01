@@ -232,6 +232,17 @@ Règles :
 - [ ] Un notebook attaché au serverless facture tant qu'il est actif : le détacher après usage.
 - [ ] Noter le coût de chaque run dans le journal d'avancement.
 
+### Tâches ML (phase 7)
+
+LightGBM n'est que dans la **base ML** de l'environnement serverless (version 6 : lightgbm 4.6.0, scikit-learn 1.7.2, mlflow-skinny 3.12.0, Microsoft Learn « Environment version 6 »). Les tâches 04 et 05 doivent donc utiliser cette base ; les noms exacts des menus sont à confirmer dans l'interface.
+
+1. **Git folder → Pull** pour récupérer `src/olist/ml/` et les notebooks 04 / 05.
+2. **Job `olist_train`** (nouveau, lancé à la main, pas par ADF) : une tâche *Notebook* `notebooks/04_ml_train`, calcul **Serverless**, environnement : version **6**, base **ML**. **Run now** une fois.
+   - Contrôle : expérience MLflow `/Shared/olist_late_delivery` avec 5 runs ; modèle `olist.ml.late_delivery` dans Catalog Explorer, alias `champion`, tag `threshold`.
+   - Si l'enregistrement échoue faute d'emplacement de stockage pour `olist.ml` *(possible, non vérifié : le schéma a été créé sans emplacement)* : lui donner un emplacement géré, par exemple `abfss://gold@<SA>.dfs.core.windows.net/ml`.
+3. **Job `olist_pipeline`** : ajouter une tâche *Notebook* `notebooks/05_ml_score` après `03_gold`, même environnement (version 6, base ML). ADF lance déjà ce job : rien à changer dans ADF.
+4. ADF → `pl_olist_daily` → **Trigger now** : le run doit écrire `olist.gold.fact_late_predictions` (99 441 lignes).
+
 ## 9. Azure Data Factory
 
 Pas de cluster (ADR-007) : ADF lance le job serverless `olist_pipeline` avec l'activité **Job** d'Azure Databricks (type JSON `DatabricksJob`), qui « tourne automatiquement sur serverless » d'après Microsoft Learn (« Transform data with Databricks Job »).
