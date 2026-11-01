@@ -374,6 +374,30 @@ az group delete --name $RG --yes --no-wait
 
 - [ ] Vérifier 24 h plus tard dans le suivi de crédit qu'aucune consommation ne continue (groupe `databricks-rg-*` bien parti).
 
+**Option retenue (2026-11-01) : garder la configuration, viser 0 USD.**
+- `dbw-olist` **supprimé** : un workspace *Hybrid* ne peut pas être « désactivé », sa NAT Gateway (groupe managé verrouillé) coûte ~1,2 USD/jour même à l'arrêt. Sa suppression emporte le groupe `databricks-rg-*`, les jobs, le SQL warehouse et le jeton Power BI. Code, notebooks et définitions de jobs restent dans Git ; pour refaire une démo, recréer un workspace *Serverless* (étapes 6 à 8).
+- `adf-olist-42747` gardé : pipeline, datasets, linked services et trigger (arrêté) restent ; une factory sans exécution ne coûte rien *(facturation à l'activité)*. Le linked service Databricks pointe vers un workspace supprimé.
+- `ac-olist` gardé (gratuit).
+- `stolist73754` gardé avec ses 4 conteneurs **vidés** : un compte vide ne coûte rien ; les données se reconstruisent depuis `data/raw` et le code. Si la suppression réversible (*soft delete*) est active, les blobs supprimés restent facturés quelques centimes jusqu'à la fin de la rétention.
+
+```bash
+az databricks workspace delete --resource-group rg-olist --name dbw-olist --yes
+```
+
+```bash
+for c in landing bronze silver gold; do az storage blob delete-batch --account-name stolist73754 --source $c --auth-mode login; done
+```
+
+```bash
+az resource list --resource-group rg-olist --output table
+```
+
+```bash
+az group list --output table
+```
+
+Attendu : 3 ressources dans `rg-olist` (`ac-olist`, `adf-olist-42747`, `stolist73754`) et plus aucun groupe `databricks-rg-*` (la suppression prend 10 à 20 min).
+
 ---
 
 ## Pièges fréquents
