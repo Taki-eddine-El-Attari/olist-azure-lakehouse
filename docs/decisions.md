@@ -207,3 +207,15 @@ Variables les plus utiles du champion (gain) : historique de l'axe (nombre 15 %,
 **Scoring dans le pipeline (2026-11-01).** Tâche `05_ml_score` ajoutée après `03_gold` dans le job `olist_pipeline` (même environnement). Run ADF `0399eb7d-8de9-40d8-8e32-be2ccbfd24ad` vert : job 14 min 35 s (contre 8 min 25 s sans scoring), archive 20 s. `fact_late_predictions` = mêmes chiffres qu'en local (fit 77 867, test 18 603 dont 20,2 % signalées, non étiquetées 2 971). Captures `docs/screenshots/phase7_adf_run_with_scoring.png`, `phase7_score_output.png`, `phase7_job_tasks.png`.
 
 **Écarté pour l'instant.** Recherche d'hyperparamètres (à faire sur le backtest, jamais sur le test) ; SHAP ; graphiques de courbes PR dans MLflow (importance en JSON seulement) ; proximité des fêtes ; entraînement limité aux commandes déjà livrées à la date de coupure (le modèle final voit des retards de fin de période qu'on n'aurait pas encore connus).
+
+## ADR-011 — CI GitHub Actions : lint + tests, sans déploiement (2026-11-01)
+
+**Décision.** Plan B du cahier des charges (phase 8) : `.github/workflows/ci.yml` lance `ruff check` puis `pytest` à chaque push sur `main` et à chaque pull request. Pas de `databricks bundle deploy` : il faudrait un service principal fédéré en OIDC (AZURE_SETUP étape 11), et un compte Microsoft personnel sur Azure for Students a peu de chances de pouvoir créer une app registration *(non vérifié, non tenté)*. Le job Databricks se met à jour par le Git folder (*Pull*).
+
+**Même environnement qu'en local.** La CI construit l'image Docker du projet (`docker compose build`) au lieu d'installer Python et Java sur le runner : une seule définition des versions, alignée sur Databricks.
+
+**Sans les données.** Les CSV Kaggle ne sont pas dans Git : les 10 tests qui lisent `data/raw` ou la Bronze locale se sautent d'eux-mêmes. Reproduit en local dans une copie sans `data/` : 19 passed, 10 skipped (29 passed avec les données).
+
+**Ruff.** `ruff==0.17.0` dans `requirements.txt` (même outil en local et en CI). Règles explicites dans `pyproject.toml` (`E4`, `E7`, `E9`, `F`, `I`) : la 0.17 active par défaut beaucoup plus de règles que la 0.12, et une mise à jour ne doit pas changer silencieusement ce que la CI vérifie. Écarté : `EXE002` (faux positif du montage Windows, les fichiers sont en 100644 dans Git), `ISC`, `RUF` (style).
+
+**Écarté.** Cache Docker entre les runs (la construction prend quelques minutes, acceptable pour un projet de démonstration) ; déploiement par Databricks Asset Bundle.

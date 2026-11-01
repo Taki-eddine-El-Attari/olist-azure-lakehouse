@@ -9,3 +9,5 @@ pyarrow==21.0.0
 scikit-learn==1.7.2
 lightgbm==4.6.0
 mlflow-skinny==3.12.0
+# Dev tools (local and CI).
+ruff==0.17.0

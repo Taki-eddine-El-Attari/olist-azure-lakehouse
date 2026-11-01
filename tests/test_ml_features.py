@@ -1,10 +1,15 @@
+import numpy as np
 import pandas as pd
 import pytest
 
-import numpy as np
-
-from olist.ml.features import (backtest_folds, build_features, dataset_label, haversine_km, prior_history,
-                               recent_late_rate)
+from olist.ml.features import (
+    backtest_folds,
+    build_features,
+    dataset_label,
+    haversine_km,
+    prior_history,
+    recent_late_rate,
+)
 
 T = pd.Timestamp
 
