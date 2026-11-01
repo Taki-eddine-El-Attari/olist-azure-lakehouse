@@ -200,6 +200,8 @@ Variables les plus utiles du champion (gain) : historique de l'axe (nombre 15 %,
 
 **Scoring.** `score.py` → `gold.fact_late_predictions` (`order_id`, `model_version`, `proba_late`, `predicted_late`, `dataset` = `fit` / `test` / `unlabeled`, `scored_at`). Power BI juge le modèle sur `dataset = "test"` uniquement.
 
-**Environnement.** Serverless version 6, **base ML** (LightGBM absent de la base standard) ; Docker épinglé sur les mêmes versions (pandas 2.3.3, numpy 2.3.4, pyarrow 21.0.0, scikit-learn 1.7.2, lightgbm 4.6.0, mlflow-skinny 3.12.0) + `libgomp1` pour LightGBM.
+**Environnement.** Serverless version 6, base standard + dépendance `lightgbm==4.6.0` (seule bibliothèque absente) ; Docker épinglé sur les mêmes versions (pandas 2.3.3, numpy 2.3.4, pyarrow 21.0.0, scikit-learn 1.7.2, lightgbm 4.6.0, mlflow-skinny 3.12.0) + `libgomp1` pour LightGBM.
+
+**Premier run Databricks (2026-11-01, job `olist_train`).** Réussi : 5 runs dans `/Shared/olist_late_delivery`, champion `lightgbm_no_recent` enregistré en `olist.ml.late_delivery` v1, alias `champion`, seuil 0,1314 identique au run local (même données, même graine : les métriques sont très probablement les mêmes, non relues une à une). Captures `docs/screenshots/phase7_*.png`.
 
 **Écarté pour l'instant.** Recherche d'hyperparamètres (à faire sur le backtest, jamais sur le test) ; SHAP ; graphiques de courbes PR dans MLflow (importance en JSON seulement) ; proximité des fêtes ; entraînement limité aux commandes déjà livrées à la date de coupure (le modèle final voit des retards de fin de période qu'on n'aurait pas encore connus).

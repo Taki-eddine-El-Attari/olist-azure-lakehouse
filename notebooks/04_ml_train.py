@@ -3,7 +3,7 @@
 # MAGIC # 04 — Entraînement du modèle de retard
 # MAGIC Features au moment de l'achat → 5 modèles comparés dans l'expérience MLflow `/Shared/olist_late_delivery` →
 # MAGIC le meilleur au backtest glissant devient `olist.ml.late_delivery@champion`. Logique : `src/olist/ml/`.
-# MAGIC Environnement serverless : **base ML** (LightGBM n'est pas dans la base standard).
+# MAGIC Environnement serverless : version 6 + dépendance `lightgbm==4.6.0` (absente de la base standard).
 
 # COMMAND ----------
 
