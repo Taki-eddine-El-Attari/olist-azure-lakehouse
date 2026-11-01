@@ -44,6 +44,10 @@ CALCULATE ( AVERAGE ( fact_orders[estimated_days] ), fact_orders[order_status] =
 Late Rate % (items) =
 CALCULATE ( [Late Rate %], TREATAS ( VALUES ( fact_order_items[order_id] ), fact_orders[order_id] ) )
 
+// Orders seen through fact_order_items (so dim_seller / dim_product filter it). Used as a minimum-volume
+// filter (>= 100) on the late-rate bars, so a state with a handful of orders does not top the chart.
+Orders (items) = DISTINCTCOUNT ( fact_order_items[order_id] )
+
 Negative Review % =
 DIVIDE (
     CALCULATE ( [Orders], fact_orders[is_negative_review] = TRUE () ),
