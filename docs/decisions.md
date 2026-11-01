@@ -139,7 +139,7 @@ Version observée au premier run : le serverless exécute **Python 3.12** (chemi
 **Constats.**
 - *Test connection* du linked service Databricks en *Serverless* échoue toujours (`27001`, « Cluster Serverless does not exist ») ; le linked service fonctionne quand même au run.
 - Debug avec l'activité Job désactivée (*Mark as succeeded*) : teste Get Metadata, la condition et la copie sans coût Databricks.
-- **Run complet du 2026-10-31** (`e7d35bfe-227f-4dda-811f-216d89fa2916`, *Trigger now*) : Get Metadata 11 s, Job 8 min 25 s, Copy 16 s, 9 CSV dans `landing/archive/2026-10-31/`. Captures `docs/screenshots/phase5_*.png`. Coût à relever (attendu ~0,22 USD comme en phase 4).
+- **Run complet du 2026-10-31** (`e7d35bfe-227f-4dda-811f-216d89fa2916`, *Trigger now*) : Get Metadata 11 s, Job 8 min 25 s, Copy 16 s, 9 CSV dans `landing/archive/2026-10-31/`. Captures `docs/screenshots/phase5_*.png`. Coût du 31/10 (Cost analysis, capture `docs/screenshots/cost_daily_2026-10-31.png`) : *Azure Data Factory v2* **0,06 USD** ; *Azure Databricks* 1,60 USD pour la journée, qui regroupe ce run et le SQL warehouse de la phase 6 (ADR-009).
 - Trigger `tr_daily` (quotidien) rattaché à `pl_olist_daily`, publié à l'état `Stopped` ; il passe `runDate = formatDateTime(trigger().scheduledTime, 'yyyy-MM-dd')`, la date prévue et non celle d'un éventuel redémarrage.
 
 **Écarté.** Vérifier les noms des 9 fichiers au lieu de leur nombre (il faudrait un *ForEach* de *Get Metadata* `exists`) : le nombre suffit tant que `landing/olist` ne reçoit que la source Olist. Alerte e-mail sur échec (Azure Monitor) : le *Fail* et le Monitor d'ADF suffisent pour un projet de démonstration.
@@ -161,5 +161,7 @@ Version observée au premier run : le serverless exécute **Python 3.12** (chemi
 **Options écartées.** Créer un utilisateur professionnel dans l'annuaire par défaut et lui donner les droits sur le workspace, `olist.gold` et le warehouse : propre (Entra ID, pas de jeton) mais plusieurs étapes de plus pour un livrable identique. Service principal en OAuth M2M : même coût de mise en place, et un secret client à gérer.
 
 **Écart assumé avec « aucun secret ».** ADF et l'accès au stockage restent en identité managée ; seul le poste de BI utilise un jeton, à durée courte. En production : comptes professionnels et Entra ID (SSO), ou service principal.
+
+**Coût.** Le 31/10, *Azure Databricks* = 1,60 USD pour le job lancé par ADF et le warehouse réunis. Si le job coûte comme en phase 4 (0,22 USD, même code), le warehouse a coûté ~1,4 USD *(déduit, non séparé)* : plus que prévu pour un import de quelques minutes, peut-être parce qu'il a tourné à sa taille d'origine avant d'être réduit. Pour séparer : Cost analysis, regrouper par *Meter*. La NAT Gateway coûte 1,20 USD/jour (avec *Virtual Network*), plus que tout le calcul.
 
 **Conséquence.** Pas de publication sur Power BI Service, qui demande un compte professionnel ou scolaire : le livrable reste `.pbix` + PDF + captures (ADR-003).
