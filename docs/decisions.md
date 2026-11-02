@@ -1,6 +1,6 @@
 # Journal des décisions
 
-## ADR-001 — Environnement local : Docker aligné sur Databricks Runtime 18 LTS ML (2026-10-26)
+## ADR-001 — Environnement local : Docker aligné sur Databricks Runtime 18 LTS ML (Jour 1)
 
 **Contexte.** Le poste Windows a Python 3.13 et Java 8, et WSL n'a pas de distro Ubuntu. Le cluster Azure tournera sur Databricks Runtime 18 LTS ML (Spark 4.1.0, Python 3.12.3, Java Zulu 21, Delta 4.2.0, d'après les release notes Microsoft Learn du 11/09/2026).
 
@@ -12,7 +12,7 @@
 
 L'identité managée d'ADF n'est pas l'utilisateur assigné au cluster. Plan : tester d'abord avec l'identité managée en phase 5, et passer au fallback *Access token* dans Key Vault si c'est refusé.
 
-## ADR-003 — Suites du benchmark : l'option la moins risquée à chaque fois (2026-10-26)
+## ADR-003 — Suites du benchmark : l'option la moins risquée à chaque fois (Jour 1)
 
 **Contexte.** Le benchmark (`docs/benchmark.md`) posait 4 questions. Consigne : choisir l'option la moins risquée et approfondir plus tard.
 
@@ -24,7 +24,7 @@ L'identité managée d'ADF n'est pas l'utilisateur assigné au cluster. Plan : t
 
 **Écarté pour l'instant.** `TIMESTAMP_NTZ` : la session est déjà figée en UTC dans `spark.py` (testé), et la lecture de `TIMESTAMP_NTZ` par le connecteur Power BI n'est pas vérifiée. Un test de phase 1 vérifie qu'aucune date ne se décale. À revoir si ce test échoue.
 
-## ADR-004 — Bronze et défauts mesurés en phase 1 (2026-10-26)
+## ADR-004 — Bronze et défauts mesurés en phase 1 (Jour 1)
 
 **Bronze.** `src/olist/bronze.py` lit les 9 CSV avec un schéma explicite (noms de colonnes de la source conservés, codes postaux en `STRING` pour garder les zéros, montants en `DECIMAL(10,2)`, dates en `TIMESTAMP` sous session UTC), en `multiLine` et en `FAILFAST` : une valeur hors schéma arrête le run au lieu de devenir `null`. Chaque table reçoit `_ingested_at` et `_source_file` (`_metadata.file_path`, qui marche aussi sous Unity Catalog). Écriture Delta en `overwrite` : la source est un instantané complet. Ingestion locale : ~47 s dans Docker.
 
@@ -55,7 +55,7 @@ L'identité managée d'ADF n'est pas l'utilisateur assigné au cluster. Plan : t
 
 Écarts avec le benchmark : BDhabekar annonce 622 commandes payées sans article et un écart de 122 510 BRL ; nous mesurons 775 et 165 318,88 BRL sur les données brutes. Leur filtre exact n'est pas connu (README seulement).
 
-## ADR-005 — Règles Silver et contrôles qualité (2026-10-26)
+## ADR-005 — Règles Silver et contrôles qualité (Jour 1)
 
 **Enquête avant les règles** (sur les CSV) : trois points de l'ADR-004 changent de sens.
 - Les **61** commandes « livrées avant approbation » ont toutes une livraison après l'achat : c'est la date d'**approbation** qui est enregistrée en retard (de 0,1 h à 7 jours). On garde ces commandes, en avertissement.
@@ -79,7 +79,7 @@ L'identité managée d'ADF n'est pas l'utilisateur assigné au cluster. Plan : t
 
 **Résultat du premier run complet** : 16/16 `error` passent. Warnings : livrée avant approbation 61, transporteur avant achat 166, payées sans article 775, commande sans paiement 1, paiements à 0 9, clients dont le préfixe n'a pas de géolocalisation 279 (157 préfixes), quarantaine 42. Silver : 98 673 avis (= 99 441 commandes − 768 sans avis), 19 010 préfixes (5 préfixes n'avaient que des points hors du Brésil).
 
-## ADR-006 — Gold : définition du retard et choix du modèle en étoile (2026-10-26)
+## ADR-006 — Gold : définition du retard et choix du modèle en étoile (Jour 1)
 
 **Retard au jour près.** La date estimée est toujours à minuit (0 exception sur 99 441). Comparer les horodatages compte donc en retard toute commande livrée **le jour promis** après minuit : 1 292 commandes, dont la note moyenne est 4,03, proche de celle des commandes à l'heure. Décision (validée) : `is_late = date(livraison) > date(estimation)`.
 
@@ -100,7 +100,7 @@ Conséquences : `sql/checks.sql`, `measures.dax` et la cible ML (phase 7) utilis
 
 **Résultat du run complet :** 11/11 contrôles Gold passent (volumes, sommes de prix et de paiements identiques à Silver, aucune clé nulle, 6,77 %, 2,27, 4,29).
 
-## ADR-007 — Databricks serverless : aucune VM utilisable sur l'abonnement (2026-10-26)
+## ADR-007 — Databricks serverless : aucune VM utilisable sur l'abonnement (Jour 1)
 
 **Constat** (`az vm list-skus`, `az vm list-usage`, policy « Allowed resource deployment regions ») : le compte Azure for Students n'autorise que 5 régions. Les deux seules qui proposent Databricks (switzerlandnorth, norwayeast) n'offrent **aucune** taille de VM utilisable : toutes sont `NotAvailableForSubscription`, ou dépassent le quota de 6 vCPU. Les régions qui ont des VM utilisables (austriaeast, denmarkeast) ne proposent pas Databricks. Les quotas vus en phase 0 (DSv2 = 4…) ne garantissaient donc rien : un quota n'est pas une autorisation.
 
@@ -117,12 +117,12 @@ Conséquences : `sql/checks.sql`, `measures.dax` et la cible ML (phase 7) utilis
 - L'image Docker reste alignée sur DBR 18 LTS ML. Le serverless suit sa propre version d'environnement : l'alignement des versions devient approximatif, à vérifier au premier run (version de Python et de Spark affichées).
 - Prix serverless Azure **non vérifié** (page de prix officielle trop lourde à charger, sources tierces contradictoires) : le coût réel du premier run sera mesuré et noté avant d'aller plus loin.
 
-**Premier run serverless (2026-10-26)** : job `olist_pipeline` réussi de bout en bout. Mêmes chiffres qu'en local à l'unité près (Bronze = CSV, Silver 98 673 avis et 42 lignes en quarantaine, 16 `pass` / 7 `warn`, Gold 11/11 dont 6,77 %, 2,27, 4,29). Le code testé en Docker a tourné sur Databricks sans modification. La tâche Bronze a pris 4 min 14 s, contre ~47 s en local : démarrage du serverless en mode standard et écritures sur ADLS. Captures : `docs/screenshots/phase4_*.png`.
+**Premier run serverless (Jour 1)** : job `olist_pipeline` réussi de bout en bout. Mêmes chiffres qu'en local à l'unité près (Bronze = CSV, Silver 98 673 avis et 42 lignes en quarantaine, 16 `pass` / 7 `warn`, Gold 11/11 dont 6,77 %, 2,27, 4,29). Le code testé en Docker a tourné sur Databricks sans modification. La tâche Bronze a pris 4 min 14 s, contre ~47 s en local : démarrage du serverless en mode standard et écritures sur ADLS. Captures : `docs/screenshots/phase4_*.png`.
 
-**Coût réel (Cost analysis, relevé le 2026-10-31)** : le run a coûté **0,22 USD** (service *Azure Databricks*, facturé le 26/10 seulement, inchangé au 31/10). Mais le cumul atteint **5,42 USD** au 31/10, dont 4,67 USD de *NAT Gateway* et 0,52 USD de *Virtual Network* dans le groupe managé `databricks-rg-dbw-olist-*`, sans aucune exécution. Cause (Microsoft Learn, « Enable secure cluster connectivity ») : un workspace *Hybrid* créé avec le réseau par défaut active la connectivité sécurisée (No Public IP) et Databricks crée une NAT Gateway, facturée à l'heure, pour un calcul classique que l'abonnement ne peut pas lancer (ADR-007). Le *Virtual Network* est probablement l'IP publique de cette NAT Gateway *(déduit, non vérifié)*. Rythme mesuré : ~1 USD/jour, soit ~30 USD/mois, au-dessus du budget de 20 USD. Captures : `docs/screenshots/phase4_cost_daily_2026-10-26.png`, `docs/screenshots/cost_cumulative_2026-10-31.png`.
+**Coût réel (Cost analysis, relevé au Jour 6)** : le run a coûté **0,22 USD** (service *Azure Databricks*, facturé au Jour 1 seulement, inchangé au Jour 6). Mais le cumul atteint **5,42 USD** au Jour 6, dont 4,67 USD de *NAT Gateway* et 0,52 USD de *Virtual Network* dans le groupe managé `databricks-rg-dbw-olist-*`, sans aucune exécution. Cause (Microsoft Learn, « Enable secure cluster connectivity ») : un workspace *Hybrid* créé avec le réseau par défaut active la connectivité sécurisée (No Public IP) et Databricks crée une NAT Gateway, facturée à l'heure, pour un calcul classique que l'abonnement ne peut pas lancer (ADR-007). Le *Virtual Network* est probablement l'IP publique de cette NAT Gateway *(déduit, non vérifié)*. Rythme mesuré : ~1 USD/jour, soit ~30 USD/mois, au-dessus du budget de 20 USD. Captures : `docs/screenshots/cost_daily_jour1.png`, `docs/screenshots/cost_cumulative_jour6.png`.
 Version observée au premier run : le serverless exécute **Python 3.12** (chemin `/databricks/python/lib/python3.12/` dans un avertissement), comme l'image Docker. Avertissement attendu sans conséquence : `No Partition Defined for Window operation`, causé par les clés de substitution `row_number` globales (limite notée dans `gold.py`).
 
-## ADR-008 — Orchestration ADF du job serverless (2026-10-31)
+## ADR-008 — Orchestration ADF du job serverless (Jour 6)
 
 **Contexte.** Pas de cluster (ADR-007), donc pas d'activité *Notebook* sur un cluster existant (ADR-002, ADR-003). Le cahier des charges prévoyait une *Copy* landing → bronze dans ADF ; or la Bronze est déjà écrite par `01_bronze` depuis le volume `olist.landing.raw`, avec schéma explicite et `FAILFAST` (ADR-004). Copier en plus dans `bronze` dupliquerait la couche.
 
@@ -139,14 +139,14 @@ Version observée au premier run : le serverless exécute **Python 3.12** (chemi
 **Constats.**
 - *Test connection* du linked service Databricks en *Serverless* échoue toujours (`27001`, « Cluster Serverless does not exist ») ; le linked service fonctionne quand même au run.
 - Debug avec l'activité Job désactivée (*Mark as succeeded*) : teste Get Metadata, la condition et la copie sans coût Databricks.
-- **Run complet du 2026-10-31** (`e7d35bfe-227f-4dda-811f-216d89fa2916`, *Trigger now*) : Get Metadata 11 s, Job 8 min 25 s, Copy 16 s, 9 CSV dans `landing/archive/2026-10-31/`. Captures `docs/screenshots/phase5_*.png`. Coût du 31/10 (Cost analysis, capture `docs/screenshots/cost_daily_2026-10-31.png`) : *Azure Data Factory v2* **0,06 USD** ; *Azure Databricks* 1,60 USD pour la journée, qui regroupe ce run et le SQL warehouse de la phase 6 (ADR-009).
+- **Run complet du Jour 6** (`e7d35bfe-227f-4dda-811f-216d89fa2916`, *Trigger now*) : Get Metadata 11 s, Job 8 min 25 s, Copy 16 s, 9 CSV dans `landing/archive/<date du run>/`. Captures `docs/screenshots/phase5_*.png`. Coût du Jour 6 (Cost analysis, capture `docs/screenshots/cost_daily_jour6.png`) : *Azure Data Factory v2* **0,06 USD** ; *Azure Databricks* 1,60 USD pour la journée, qui regroupe ce run et le SQL warehouse de la phase 6 (ADR-009).
 - Trigger `tr_daily` (quotidien) rattaché à `pl_olist_daily`, publié à l'état `Stopped` ; il passe `runDate = formatDateTime(trigger().scheduledTime, 'yyyy-MM-dd')`, la date prévue et non celle d'un éventuel redémarrage.
 
 **Écarté.** Vérifier les noms des 9 fichiers au lieu de leur nombre (il faudrait un *ForEach* de *Get Metadata* `exists`) : le nombre suffit tant que `landing/olist` ne reçoit que la source Olist. Alerte e-mail sur échec (Azure Monitor) : le *Fail* et le Monitor d'ADF suffisent pour un projet de démonstration.
 
 **Limite.** L'ID d'abonnement et l'ID de tenant figurent dans `adf/` (ressource du workspace, identité de la factory) : ce sont des identifiants, pas des secrets.
 
-## ADR-009 — Power BI sur SQL warehouse, authentification par jeton (2026-10-31)
+## ADR-009 — Power BI sur SQL warehouse, authentification par jeton (Jour 6)
 
 **Contexte.** Phase 6 : Power BI Desktop doit lire `olist.gold.*` dans Databricks. Le compte Azure est un compte Microsoft personnel (gmail, annuaire par défaut `takieddineelattarigmail.onmicrosoft.com`). La connexion *Microsoft Entra ID* du connecteur Azure Databricks le refuse : « Vous ne pouvez pas vous connecter ici avec un compte personnel ».
 
@@ -162,11 +162,11 @@ Version observée au premier run : le serverless exécute **Python 3.12** (chemi
 
 **Écart assumé avec « aucun secret ».** ADF et l'accès au stockage restent en identité managée ; seul le poste de BI utilise un jeton, à durée courte. En production : comptes professionnels et Entra ID (SSO), ou service principal.
 
-**Coût.** Le 31/10, *Azure Databricks* = 1,60 USD pour le job lancé par ADF et le warehouse réunis. Si le job coûte comme en phase 4 (0,22 USD, même code), le warehouse a coûté ~1,4 USD *(déduit, non séparé)* : plus que prévu pour un import de quelques minutes, peut-être parce qu'il a tourné à sa taille d'origine avant d'être réduit. Pour séparer : Cost analysis, regrouper par *Meter*. La NAT Gateway coûte 1,20 USD/jour (avec *Virtual Network*), plus que tout le calcul.
+**Coût.** Au Jour 6, *Azure Databricks* = 1,60 USD pour le job lancé par ADF et le warehouse réunis. Si le job coûte comme en phase 4 (0,22 USD, même code), le warehouse a coûté ~1,4 USD *(déduit, non séparé)* : plus que prévu pour un import de quelques minutes, peut-être parce qu'il a tourné à sa taille d'origine avant d'être réduit. Pour séparer : Cost analysis, regrouper par *Meter*. La NAT Gateway coûte 1,20 USD/jour (avec *Virtual Network*), plus que tout le calcul.
 
 **Conséquence.** Pas de publication sur Power BI Service, qui demande un compte professionnel ou scolaire : le livrable reste `.pbix` + PDF + captures (ADR-003).
 
-## ADR-010 — Modèle de retard : features au moment de l'achat, backtest glissant, MLflow (2026-11-01)
+## ADR-010 — Modèle de retard : features au moment de l'achat, backtest glissant, MLflow (Jour 7)
 
 **Cible et population.** `is_late` lu dans `gold.fact_orders` (au jour près, ADR-006), sur les commandes `delivered` avec date de livraison : la même population que `Late Rate %`. Une ligne par commande ; toutes les commandes sont scorées, y compris les non livrées.
 
@@ -182,7 +182,7 @@ Version observée au premier run : le serverless exécute **Python 3.12** (chemi
 
 **Itérations, en toute transparence.** Le test a été regardé 4 fois pendant la mise au point : (1) avec `purchase_month` et une validation fixe : aucun modèle ne battait la règle en validation ; (2) mois remplacé par l'historique d'axe et le taux de retard des 30 derniers jours : meilleur en validation, pire au test ; (3) choix par backtest ; (4) modèle final aligné sur la recette du backtest. Chaque changement a une raison de protocole (le mois mémorise un choc propre à 2018 ; une fenêtre de validation unique est instable ; le modèle final doit suivre la recette évaluée), et le choix du champion n'utilise jamais le test. Le chiffre de test reste néanmoins légèrement optimiste.
 
-**Résultats** (run local du 2026-11-01, 77 867 commandes avant le test, 18 603 en test, retard 3,6 %) :
+**Résultats** (run local du Jour 7, 77 867 commandes avant le test, 18 603 en test, retard 3,6 %) :
 
 | Modèle | Lift backtest (mois battant la règle) | PR-AUC test | ROC-AUC test | Précision / rappel test |
 |---|---|---|---|---|
@@ -202,13 +202,13 @@ Variables les plus utiles du champion (gain) : historique de l'axe (nombre 15 %,
 
 **Environnement.** Serverless version 6, base standard + dépendance `lightgbm==4.6.0` (seule bibliothèque absente) ; Docker épinglé sur les mêmes versions (pandas 2.3.3, numpy 2.3.4, pyarrow 21.0.0, scikit-learn 1.7.2, lightgbm 4.6.0, mlflow-skinny 3.12.0) + `libgomp1` pour LightGBM.
 
-**Premier run Databricks (2026-11-01, job `olist_train`).** Réussi : 5 runs dans `/Shared/olist_late_delivery`, champion `lightgbm_no_recent` enregistré en `olist.ml.late_delivery` v1, alias `champion`, seuil 0,1314 identique au run local (même données, même graine : les métriques sont très probablement les mêmes, non relues une à une). Captures `docs/screenshots/phase7_*.png`.
+**Premier run Databricks (Jour 7, job `olist_train`).** Réussi : 5 runs dans `/Shared/olist_late_delivery`, champion `lightgbm_no_recent` enregistré en `olist.ml.late_delivery` v1, alias `champion`, seuil 0,1314 identique au run local (même données, même graine : les métriques sont très probablement les mêmes, non relues une à une). Captures `docs/screenshots/phase7_*.png`.
 
-**Scoring dans le pipeline (2026-11-01).** Tâche `05_ml_score` ajoutée après `03_gold` dans le job `olist_pipeline` (même environnement). Run ADF `0399eb7d-8de9-40d8-8e32-be2ccbfd24ad` vert : job 14 min 35 s (contre 8 min 25 s sans scoring), archive 20 s. `fact_late_predictions` = mêmes chiffres qu'en local (fit 77 867, test 18 603 dont 20,2 % signalées, non étiquetées 2 971). Captures `docs/screenshots/phase7_adf_run_with_scoring.png`, `phase7_score_output.png`, `phase7_job_tasks.png`.
+**Scoring dans le pipeline (Jour 7).** Tâche `05_ml_score` ajoutée après `03_gold` dans le job `olist_pipeline` (même environnement). Run ADF `0399eb7d-8de9-40d8-8e32-be2ccbfd24ad` vert : job 14 min 35 s (contre 8 min 25 s sans scoring), archive 20 s. `fact_late_predictions` = mêmes chiffres qu'en local (fit 77 867, test 18 603 dont 20,2 % signalées, non étiquetées 2 971). Captures `docs/screenshots/phase7_adf_run_with_scoring.png`, `phase7_score_output.png`, `phase7_job_tasks.png`.
 
 **Écarté pour l'instant.** Recherche d'hyperparamètres (à faire sur le backtest, jamais sur le test) ; SHAP ; graphiques de courbes PR dans MLflow (importance en JSON seulement) ; proximité des fêtes ; entraînement limité aux commandes déjà livrées à la date de coupure (le modèle final voit des retards de fin de période qu'on n'aurait pas encore connus).
 
-## ADR-011 — CI GitHub Actions : lint + tests, sans déploiement (2026-11-01)
+## ADR-011 — CI GitHub Actions : lint + tests, sans déploiement (Jour 7)
 
 **Décision.** Plan B du cahier des charges (phase 8) : `.github/workflows/ci.yml` lance `ruff check` puis `pytest` à chaque push sur `main` et à chaque pull request. Pas de `databricks bundle deploy` : il faudrait un service principal fédéré en OIDC (AZURE_SETUP étape 11), et un compte Microsoft personnel sur Azure for Students a peu de chances de pouvoir créer une app registration *(non vérifié, non tenté)*. Le job Databricks se met à jour par le Git folder (*Pull*).
 

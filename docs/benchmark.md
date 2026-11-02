@@ -1,4 +1,4 @@
-# Benchmark — 9 projets GitHub « Olist + Azure Lakehouse » (2026-10-26)
+# Benchmark — 9 projets GitHub « Olist + Azure Lakehouse » (Jour 1)
 
 **Méthode :** lecture des README via l'API GitHub (pas du code, pas des notebooks). Ce que les README affirment (« fail fast », « tests »…) **n'est pas vérifié**. Aucun des 9 repos n'a d'étoile.
 
@@ -61,4 +61,4 @@
 3. **`.pbip`** : OK pour versionner le rapport en texte ?
 4. On ajoute les « reprendre » des §2-3 au cahier des charges (phases 1, 2, 9) ?
 
-**Réponses (2026-10-26) :** option la moins risquée retenue à chaque fois, détail dans [ADR-003](decisions.md). 1 : nom gardé. 2 : plan inchangé, *Databricks Job* gardé en plan B de phase 5. 3 : `.pbix` gardé. 4 : oui, ajoutés au cahier des charges, sauf `TIMESTAMP_NTZ` (reporté).
+**Réponses (Jour 1) :** option la moins risquée retenue à chaque fois, détail dans [ADR-003](decisions.md). 1 : nom gardé. 2 : plan inchangé, *Databricks Job* gardé en plan B de phase 5. 3 : `.pbix` gardé. 4 : oui, ajoutés au cahier des charges, sauf `TIMESTAMP_NTZ` (reporté).

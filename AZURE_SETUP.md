@@ -101,7 +101,7 @@ Portail : **Abonnements → ton abonnement → Fournisseurs de ressources → re
 
 ---
 
-## 3. Quotas et tailles de VM (constaté le 2026-10-26)
+## 3. Quotas et tailles de VM (constaté au Jour 1)
 
 Un quota n'est pas une autorisation : `az vm list-usage` montre des quotas (6 vCPU régionaux, DSv2 = 4…), mais `az vm list-skus` montre que **presque toutes les tailles sont `NotAvailableForSubscription`** sur ce compte.
 
@@ -234,10 +234,10 @@ Règles :
 
 ### Tâches ML (phase 7)
 
-L'environnement serverless standard version 6 contient déjà scikit-learn 1.7.2, mlflow-skinny 3.12.0, pandas et pyarrow (Microsoft Learn « Environment version 6 ») ; seul LightGBM manque. Dans la tâche : *Environment and Libraries* → *Configure environment* → **Base environment vide** (il attend un fichier `.yml`, pas un choix « ML »), **Environment version 6**, **Dependencies : `lightgbm==4.6.0`** (constaté le 2026-11-01, sans erreur `libgomp`).
+L'environnement serverless standard version 6 contient déjà scikit-learn 1.7.2, mlflow-skinny 3.12.0, pandas et pyarrow (Microsoft Learn « Environment version 6 ») ; seul LightGBM manque. Dans la tâche : *Environment and Libraries* → *Configure environment* → **Base environment vide** (il attend un fichier `.yml`, pas un choix « ML »), **Environment version 6**, **Dependencies : `lightgbm==4.6.0`** (constaté au Jour 7, sans erreur `libgomp`).
 
 1. **Git folder → Pull** pour récupérer `src/olist/ml/` et les notebooks 04 / 05.
-2. **Job `olist_train`** (nouveau, lancé à la main, pas par ADF) : une tâche *Notebook* `notebooks/04_ml_train`, calcul **Serverless**, environnement version **6** + dépendance `lightgbm==4.6.0`. **Run now** une fois (fait le 2026-11-01).
+2. **Job `olist_train`** (nouveau, lancé à la main, pas par ADF) : une tâche *Notebook* `notebooks/04_ml_train`, calcul **Serverless**, environnement version **6** + dépendance `lightgbm==4.6.0`. **Run now** une fois (fait au Jour 7).
    - Contrôle : expérience MLflow `/Shared/olist_late_delivery` avec 5 runs ; modèle `olist.ml.late_delivery` dans Catalog Explorer, alias `champion`, tag `threshold`.
    - Si l'enregistrement échoue faute d'emplacement de stockage pour `olist.ml` *(possible, non vérifié : le schéma a été créé sans emplacement)* : lui donner un emplacement géré, par exemple `abfss://gold@<SA>.dfs.core.windows.net/ml`.
 3. **Job `olist_pipeline`** : ajouter une tâche *Notebook* `notebooks/05_ml_score` après `03_gold`, même environnement (version 6 + `lightgbm==4.6.0`, nécessaire pour recharger le modèle). ADF lance déjà ce job : rien à changer dans ADF.
@@ -247,7 +247,7 @@ L'environnement serverless standard version 6 contient déjà scikit-learn 1.7.2
 
 Pas de cluster (ADR-007) : ADF lance le job serverless `olist_pipeline` avec l'activité **Job** d'Azure Databricks (type JSON `DatabricksJob`), qui « tourne automatiquement sur serverless » d'après Microsoft Learn (« Transform data with Databricks Job »).
 
-### Bloc A — factory et rôles (fait le 2026-10-26)
+### Bloc A — factory et rôles (fait au Jour 1)
 
 ```bash
 az datafactory create -g $RG -n $ADF -l $LOC
@@ -277,7 +277,7 @@ Ordre important : **Git d'abord**, pour que chaque objet créé ensuite soit com
 
 **2. Manage → Linked services → New**
 - `ls_adls` : *Azure Data Lake Storage Gen2* ; authentification *System-assigned managed identity* ; URL `https://<SA>.dfs.core.windows.net`. *Test connection* : choisir **To file path** → `landing/olist` (le rôle ne couvre que le conteneur `landing`, un test à la racine du compte peut échouer).
-- `ls_databricks` : *Azure Databricks* ; workspace choisi *From Azure subscription* (`dbw-olist`) ; authentification *Managed service identity* ; cluster : **Serverless**. **Ne pas cliquer sur *Test connection*** : il échoue toujours avec `27001 ... Cluster Serverless does not exist` (le test cherche un cluster interactif portant ce nom). Cliquer directement **Create** ; le vrai test est le run du job (constaté le 2026-10-31).
+- `ls_databricks` : *Azure Databricks* ; workspace choisi *From Azure subscription* (`dbw-olist`) ; authentification *Managed service identity* ; cluster : **Serverless**. **Ne pas cliquer sur *Test connection*** : il échoue toujours avec `27001 ... Cluster Serverless does not exist` (le test cherche un cluster interactif portant ce nom). Cliquer directement **Create** ; le vrai test est le run du job (constaté au Jour 6).
 
 **3. Author → Datasets → New → ADLS Gen2 → Binary** : `ds_landing`
 - Linked service `ls_adls` ; paramètre `folder` (String).
@@ -326,7 +326,7 @@ Pas de cluster (ADR-007) : Power BI Desktop lit `olist.gold.*` via un **SQL ware
 
 **1. Warehouse** (Databricks → *SQL Warehouses*) : le workspace fournit déjà **Serverless Starter Warehouse** ; l'éditer (**⋮ → Edit**) plutôt que d'en créer un. Par défaut, un nouveau warehouse est en *X-Large* avec arrêt après 10 min (Microsoft Learn, « Create a SQL warehouse »). Réglages : **Cluster size 2X-Small**, **Auto stop 5 min** (minimum de l'interface), scaling 1-1. Onglet *Connection details* : *Server hostname* et *HTTP path* → `.env` (`DATABRICKS_HOST`, `DATABRICKS_HTTP_PATH`).
 
-**2. Authentification : jeton d'accès personnel (PAT)**. Le compte Azure est un compte Microsoft personnel (gmail) : la connexion *Microsoft Entra ID* du connecteur le refuse (« Vous ne pouvez pas vous connecter ici avec un compte personnel », constaté le 2026-10-31). Databricks → *Settings → Developer → Access tokens → Generate new token*, commentaire `powerbi-desktop`, **30 jours**. Le jeton n'est saisi que dans Power BI, qui le garde dans son propre stockage local, hors du `.pbix` *(d'après le fonctionnement connu de Power BI Desktop, non vérifié sur ce poste)*. **Révoquer le jeton en phase 9.** Voir ADR-009.
+**2. Authentification : jeton d'accès personnel (PAT)**. Le compte Azure est un compte Microsoft personnel (gmail) : la connexion *Microsoft Entra ID* du connecteur le refuse (« Vous ne pouvez pas vous connecter ici avec un compte personnel », constaté au Jour 6). Databricks → *Settings → Developer → Access tokens → Generate new token*, commentaire `powerbi-desktop`, **30 jours**. Le jeton n'est saisi que dans Power BI, qui le garde dans son propre stockage local, hors du `.pbix` *(d'après le fonctionnement connu de Power BI Desktop, non vérifié sur ce poste)*. **Révoquer le jeton en phase 9.** Voir ADR-009.
 
 **3. Bascule du `.pbix`** (les relations, mesures et visuels sont attachés aux requêtes existantes, on ne change que leur source) :
 1. *Obtenir les données → Azure Databricks* → hostname + HTTP path, mode **Import** → *Jeton d'accès personnel* → Navigateur `olist` → `gold` → cocher `fact_orders` seul → **Transformer les données**.
@@ -374,7 +374,7 @@ az group delete --name $RG --yes --no-wait
 
 - [ ] Vérifier 24 h plus tard dans le suivi de crédit qu'aucune consommation ne continue (groupe `databricks-rg-*` bien parti).
 
-**Option retenue (2026-11-01) : garder la configuration, viser 0 USD.**
+**Option retenue (Jour 7) : garder la configuration, viser 0 USD.**
 - `dbw-olist` **supprimé** : un workspace *Hybrid* ne peut pas être « désactivé », sa NAT Gateway (groupe managé verrouillé) coûte ~1,2 USD/jour même à l'arrêt. Sa suppression emporte le groupe `databricks-rg-*`, les jobs, le SQL warehouse et le jeton Power BI. Code, notebooks et définitions de jobs restent dans Git ; pour refaire une démo, recréer un workspace *Serverless* (étapes 6 à 8).
 - `adf-olist-42747` gardé : pipeline, datasets, linked services et trigger (arrêté) restent ; une factory sans exécution ne coûte rien *(facturation à l'activité)*. Le linked service Databricks pointe vers un workspace supprimé.
 - `ac-olist` gardé (gratuit).
@@ -384,7 +384,7 @@ az group delete --name $RG --yes --no-wait
 az databricks workspace delete --resource-group rg-olist --name dbw-olist --yes
 ```
 
-Vider les conteneurs (PowerShell). Sur un compte ADLS Gen2, `az storage blob delete-batch` échoue (« Failed Precondition ») sur les dossiers non vides : supprimer plutôt chaque dossier de premier niveau, ce qui efface son contenu, puis vérifier qu'il reste 0 fichier par conteneur (constaté le 2026-11-02) :
+Vider les conteneurs (PowerShell). Sur un compte ADLS Gen2, `az storage blob delete-batch` échoue (« Failed Precondition ») sur les dossiers non vides : supprimer plutôt chaque dossier de premier niveau, ce qui efface son contenu, puis vérifier qu'il reste 0 fichier par conteneur (constaté au Jour 8) :
 
 ```powershell
 foreach ($c in @('landing','bronze','silver','gold')) { foreach ($d in (az storage fs file list -f $c --account-name stolist73754 --auth-mode login --recursive false --query "[?isDirectory].name" -o tsv)) { az storage fs directory delete -f $c -n $d --account-name stolist73754 --auth-mode login --yes } }
