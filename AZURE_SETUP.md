@@ -384,8 +384,20 @@ az group delete --name $RG --yes --no-wait
 az databricks workspace delete --resource-group rg-olist --name dbw-olist --yes
 ```
 
+Vider les conteneurs (PowerShell). Sur un compte ADLS Gen2, `az storage blob delete-batch` échoue (« Failed Precondition ») sur les dossiers non vides : supprimer plutôt chaque dossier de premier niveau, ce qui efface son contenu, puis vérifier qu'il reste 0 fichier par conteneur (constaté le 2026-11-02) :
+
+```powershell
+foreach ($c in @('landing','bronze','silver','gold')) { foreach ($d in (az storage fs file list -f $c --account-name stolist73754 --auth-mode login --recursive false --query "[?isDirectory].name" -o tsv)) { az storage fs directory delete -f $c -n $d --account-name stolist73754 --auth-mode login --yes } }
+```
+
+```powershell
+foreach ($c in @('landing','bronze','silver','gold')) { "$c : " + (az storage fs file list -f $c --account-name stolist73754 --auth-mode login --query "[?!isDirectory].name" -o tsv | Measure-Object -Line).Lines }
+```
+
+Le groupe managé `databricks-rg-dbw-olist-*` n'était toujours pas supprimé 20 min après le workspace : le supprimer à la main (le workspace parti, Databricks ne le verrouille plus) :
+
 ```bash
-for c in landing bronze silver gold; do az storage blob delete-batch --account-name stolist73754 --source $c --auth-mode login; done
+az group delete --name databricks-rg-dbw-olist-8mmq5lo0ewwil --yes
 ```
 
 ```bash
