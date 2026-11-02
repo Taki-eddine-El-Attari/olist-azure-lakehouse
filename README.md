@@ -56,9 +56,12 @@ Autres captures : [Power BI](powerbi/screenshots/) (4 pages, aussi en [PDF](powe
 
 ## Coûts réels (Azure for Students)
 
-- **≈ 7,9 USD du 26 au 31 octobre 2026** *(somme des relevés Cost analysis ; captures dans `docs/screenshots/cost_*.png`)*. Le premier run du job serverless (01 → 03) a coûté 0,22 USD ; ADF 0,06 USD pour sa journée de mise au point.
-- Premier poste de coût : la **NAT Gateway** que Databricks crée pour un workspace *Hybrid* (~1,2 USD/jour même à l'arrêt), plus chère que tout le calcul. À refaire : un workspace *Serverless* d'emblée ([ADR-007](docs/decisions.md)).
-- Total final : *à compléter après le relevé du 1er novembre et le nettoyage.*
+**11,14 USD au total**, du 26 octobre au 2 novembre 2026, pour un budget estimé de 15 à 35 USD *(Cost analysis, relevé du 2026-11-02 ; [capture](docs/screenshots/cost_total_2026-11-02.png))* :
+
+- **Calcul Databricks serverless : 3,58 USD**. Premier job 01 → 03 : 0,22 USD ; journée du run ADF et des imports Power BI : 1,60 USD ; journée de l'entraînement (45 modèles au backtest), du run complet avec scoring et des imports : 1,76 USD.
+- **NAT Gateway + réseau : 7,44 USD**, les deux tiers de la facture. Databricks crée cette passerelle pour un workspace *Hybrid*, et elle est facturée en continu même sans exécution, pour un calcul classique que l'abonnement ne pouvait pas lancer. À refaire : un workspace *Serverless* d'emblée ([ADR-007](docs/decisions.md)).
+- **Data Factory : 0,09 USD** ; stockage et bande passante : quelques centimes.
+- Depuis le nettoyage du 2 novembre, plus aucune ressource facturable ne reste active : ADF (trigger arrêté), l'Access Connector et un compte de stockage vide sont conservés pour garder la configuration visible.
 
 ## Reproduire
 
