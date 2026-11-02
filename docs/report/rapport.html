@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Olist Lakehouse — Rapport de projet</title>
+<style>
+  @page {
+    size: A4;
+    margin: 18mm 17mm 20mm 17mm;
+    @bottom-left { content: "Olist Lakehouse — Pipeline Data & ML sur Azure"; font: 8pt "Segoe UI", sans-serif; color: #8a8986; }
+    @bottom-right { content: counter(page); font: 8pt "Segoe UI", sans-serif; color: #8a8986; }
+  }
+  @page :first { @bottom-left { content: none; } @bottom-right { content: none; } }
+  :root { --ink: #1d1d1b; --muted: #52514e; --rule: #d9d8d3; --accent: #2a78d6; --soft: #f3f6fb; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: "Segoe UI", Calibri, Arial, sans-serif; font-size: 10.3pt; line-height: 1.45; color: var(--ink); background: #fff; margin: 0; }
+  h1 { font-size: 19pt; color: var(--accent); margin: 0 0 10pt; padding-bottom: 5pt; border-bottom: 2px solid var(--accent); break-before: page; }
+  h2 { font-size: 13pt; margin: 14pt 0 5pt; color: var(--ink); break-after: avoid; }
+  h3 { font-size: 11pt; margin: 10pt 0 4pt; color: var(--muted); break-after: avoid; }
+  p { margin: 0 0 6pt; text-align: justify; }
+  ul, ol { margin: 0 0 6pt; padding-left: 16pt; }
+  li { margin-bottom: 2pt; }
+  code { font-family: Consolas, monospace; font-size: 9pt; background: #f1f0ec; padding: 0 2pt; border-radius: 2px; }
+  pre { font-family: Consolas, monospace; font-size: 8.4pt; background: #f6f5f2; border: 1px solid var(--rule); border-radius: 4px; padding: 6pt 8pt; white-space: pre-wrap; break-inside: avoid; margin: 4pt 0 8pt; }
+  figure { margin: 8pt 0 10pt; text-align: center; break-inside: avoid; }
+  figure img { max-width: 100%; border: 1px solid var(--rule); border-radius: 3px; }
+  figure img.plain { border: none; }
+  figcaption { font-size: 8.6pt; color: var(--muted); margin-top: 3pt; }
+  .pair { display: flex; gap: 8pt; break-inside: avoid; }
+  .pair figure { flex: 1; margin: 6pt 0; }
+  table { width: 100%; border-collapse: collapse; margin: 4pt 0 9pt; font-size: 8.9pt; break-inside: avoid; }
+  th { background: var(--soft); text-align: left; font-weight: 600; }
+  th, td { border: 1px solid var(--rule); padding: 3pt 5pt; vertical-align: top; }
+  td.n, th.n { text-align: right; white-space: nowrap; }
+  .callout { background: var(--soft); border-left: 3px solid var(--accent); padding: 6pt 9pt; margin: 6pt 0 9pt; break-inside: avoid; }
+  .callout p:last-child { margin-bottom: 0; }
+  .kpis { display: flex; gap: 6pt; margin: 8pt 0 10pt; }
+  .kpi { flex: 1; border: 1px solid var(--rule); border-radius: 4px; padding: 6pt; text-align: center; }
+  .kpi b { display: block; font-size: 15pt; color: var(--accent); }
+  .kpi span { font-size: 8.3pt; color: var(--muted); }
+  /* cover */
+  .cover { height: 250mm; display: flex; flex-direction: column; justify-content: center; }
+  .cover h1 { break-before: auto; border: none; font-size: 30pt; color: var(--ink); margin-bottom: 4pt; }
+  .cover .sub { font-size: 15pt; color: var(--accent); margin-bottom: 26pt; }
+  .cover .meta { font-size: 10.5pt; color: var(--muted); line-height: 1.7; }
+  .cover .stack { margin-top: 30pt; font-size: 9.5pt; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 8pt; }
+  .toc { list-style: none; padding: 0; font-size: 11pt; line-height: 1.9; }
+  .toc li { border-bottom: 1px dotted var(--rule); }
+  .toc .sub { font-size: 9.6pt; color: var(--muted); padding-left: 14pt; line-height: 1.6; border: none; }
+  .small { font-size: 8.8pt; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- ============ COUVERTURE ============ -->
+<section class="cover">
+  <h1>Olist Lakehouse</h1>
+  <div class="sub">Pipeline Data &amp; ML sur Azure — rapport de projet</div>
+  <div class="meta">
+    Taki Eddine El Attari<br>
+    Projet réalisé en 8 jours (Jour 1 à Jour 8)<br>
+    Dépôt : github.com/Taki-eddine-El-Attari/olist-azure-lakehouse
+  </div>
+  <div class="stack">Azure Data Lake Storage Gen2 · Azure Data Factory · Azure Databricks (serverless, Unity Catalog) · PySpark · Delta Lake · MLflow · LightGBM · Power BI · Docker · pytest · GitHub Actions</div>
+</section>
+
+<!-- ============ RÉSUMÉ + SOMMAIRE ============ -->
+<h1>Résumé</h1>
+<p>Ce projet construit un pipeline de données de bout en bout sur les 99&nbsp;441 commandes du dataset public de la marketplace brésilienne Olist (2016-2018). Les fichiers CSV sont déposés dans Azure Data Lake Storage Gen2, puis Azure Data Factory orchestre un job Azure Databricks serverless qui produit trois couches Delta Lake (Bronze, Silver, Gold) gouvernées par Unity Catalog. La couche Gold est un schéma en étoile exploité dans un rapport Power BI de quatre pages. Un modèle de prédiction des retards de livraison est entraîné, comparé dans MLflow, enregistré dans le registre Unity Catalog et appliqué en batch par le pipeline.</p>
+<p>La question métier qui guide le projet est la suivante : <i>les retards de livraison détruisent-ils la satisfaction client, où se produisent-ils, et peut-on les prédire dès la commande&nbsp;?</i></p>
+<div class="kpis">
+  <div class="kpi"><b>6,77 %</b><span>des commandes livrées arrivent après le jour promis</span></div>
+  <div class="kpi"><b>2,27 / 4,29</b><span>note moyenne en retard / à l'heure</span></div>
+  <div class="kpi"><b>62 % / 9 %</b><span>avis négatifs en retard / à l'heure</span></div>
+  <div class="kpi"><b>11,14 USD</b><span>coût Azure total du projet</span></div>
+</div>
+<p>Les retards sont fortement concentrés dans le temps (19&nbsp;% en mars 2018) et dans l'espace (21&nbsp;% dans l'Alagoas contre 3&nbsp;% en Amazonas). Le modèle retenu bat une règle simple sur la période de test (PR-AUC 0,056 contre 0,050), mais de peu : les retards viennent surtout de chocs de période que les informations disponibles au moment de la commande ne voient pas. Ce résultat est présenté tel quel, avec le protocole qui l'a produit.</p>
+<p>Côté ingénierie, la logique vit dans un paquet Python testé en local (29 tests, Docker aligné sur Databricks), les notebooks ne font que l'appeler, et le même code a tourné sur Databricks sans modification. Les identités managées remplacent les clés, onze décisions d'architecture sont documentées, et une intégration continue GitHub Actions vérifie chaque modification. Le projet a coûté 11,14&nbsp;USD sur un compte Azure for Students, dont les deux tiers pour une ressource réseau que le calcul serverless n'utilisait pas : c'est l'un des enseignements du rapport.</p>
+
+<h2>Sommaire</h2>
+<ul class="toc">
+  <li>1. Introduction et contexte</li>
+  <li>2. Architecture et choix techniques</li>
+  <li>3. Données et qualité</li>
+  <li>4. Modèle Gold et analyse Power BI</li>
+  <li>5. Déploiement cloud et orchestration</li>
+  <li>6. Machine learning : prédire un retard dès la commande</li>
+  <li>7. Industrialisation</li>
+  <li>8. Coûts et exploitation</li>
+  <li>9. Bilan</li>
+  <li class="sub">Annexes : A. Journal Jour 1 à Jour 8 · B. Décisions d'architecture · C. Extraits de code · D. Reproduire le projet · E. Glossaire</li>
+</ul>
+
+<!-- ============ 1. INTRODUCTION ============ -->
+<h1>1. Introduction et contexte</h1>
+<h2>1.1 Objectif</h2>
+<p>Le projet a un double objectif. D'un côté, démontrer les compétences recherchées dans les offres data et cloud : ingestion et orchestration sur Azure, transformation Spark sur Databricks, modélisation dimensionnelle, Power BI et DAX, machine learning industrialisé, maîtrise des coûts et de la sécurité. De l'autre, répondre à une vraie question métier avec des chiffres vérifiables, plutôt que d'empiler des outils.</p>
+<p>Ce que le projet doit prouver :</p>
+<ol>
+  <li>savoir construire un pipeline de données cloud de bout en bout, de l'ingestion au modèle dimensionnel ;</li>
+  <li>savoir modéliser pour la BI et produire un rapport qui raconte une histoire ;</li>
+  <li>savoir entraîner, tracer et industrialiser un modèle sans fuite de données ;</li>
+  <li>maîtriser les coûts et la sécurité : identités managées, aucun secret en clair, arrêt des ressources.</li>
+</ol>
+
+<h2>1.2 Les données</h2>
+<p>Le dataset Kaggle « Brazilian E-Commerce Public Dataset by Olist » décrit environ 100&nbsp;000 commandes passées entre fin 2016 et fin 2018. Les neuf fichiers sont présents :</p>
+<table>
+  <tr><th>Fichier</th><th class="n">Lignes</th><th>Clé</th><th>Contenu</th></tr>
+  <tr><td>orders</td><td class="n">99 441</td><td>order_id</td><td>statut et cinq dates (achat, approbation, remise au transporteur, livraison, livraison estimée)</td></tr>
+  <tr><td>order_items</td><td class="n">112 650</td><td>order_id + order_item_id</td><td>articles, prix, fret, vendeur</td></tr>
+  <tr><td>order_payments</td><td class="n">103 886</td><td>order_id + payment_sequential</td><td>type de paiement, échéances, montant</td></tr>
+  <tr><td>order_reviews</td><td class="n">99 224</td><td>review_id + order_id</td><td>note de 1 à 5, commentaire en portugais</td></tr>
+  <tr><td>customers</td><td class="n">99 441</td><td>customer_id</td><td>identifiant client réel, ville, état</td></tr>
+  <tr><td>products</td><td class="n">32 951</td><td>product_id</td><td>catégorie, poids, dimensions</td></tr>
+  <tr><td>sellers</td><td class="n">3 095</td><td>seller_id</td><td>ville, état</td></tr>
+  <tr><td>geolocation</td><td class="n">1 000 163</td><td>zip_code_prefix (non unique)</td><td>coordonnées par préfixe postal</td></tr>
+  <tr><td>category_translation</td><td class="n">71</td><td>catégorie</td><td>traduction portugais → anglais</td></tr>
+</table>
+
+<h2>1.3 Périmètre</h2>
+<p><b>Dans le périmètre :</b> lakehouse en couches Bronze, Silver et Gold au format Delta ; orchestration par Data Factory ; transformations PySpark sur Databricks ; schéma en étoile et rapport Power BI ; modèle de prédiction des retards suivi dans MLflow, enregistré et appliqué en batch ; tests et contrôles de qualité ; intégration continue.</p>
+<p><b>Hors périmètre, assumé :</b> endpoint de prédiction temps réel (coût permanent, inutile pour un score quotidien), streaming, IA générative, haute disponibilité et réseau privé. Ces points sont discutés au chapitre 9 comme évolutions de production.</p>
+
+<h2>1.4 Démarche</h2>
+<p>Le travail suit neuf phases, chacune avec une « définition de fini » vérifiée par une commande ou un test plutôt qu'à l'œil. La règle centrale est de <b>ne rien créer dans le cloud avant que le pipeline marche en local</b> : les phases 0 à 3 (exploration, Bronze, Silver, Gold, maquette Power BI) tournent entièrement dans Docker, à coût nul. Le cloud n'exécute ensuite que du code déjà testé. Chaque choix structurant est consigné dans un journal de décisions (onze ADR, annexe B), et chaque chiffre de ce rapport vient d'une exécution réelle.</p>
+<table>
+  <tr><th>Phase</th><th>Contenu</th><th>Jour</th></tr>
+  <tr><td>0</td><td>Cadrage, dépôt, environnement Docker, comptes et quotas Azure</td><td>Jour 1</td></tr>
+  <tr><td>1 à 3</td><td>Exploration, Bronze, Silver, Gold et maquette Power BI en local</td><td>Jour 1</td></tr>
+  <tr><td>4</td><td>Stockage ADLS, Databricks, Unity Catalog, premier job serverless</td><td>Jour 1</td></tr>
+  <tr><td>5</td><td>Orchestration Data Factory</td><td>Jours 1 et 6</td></tr>
+  <tr><td>6</td><td>Power BI connecté à Databricks, quatre pages</td><td>Jours 6 et 7</td></tr>
+  <tr><td>7</td><td>Machine learning et MLflow</td><td>Jour 7</td></tr>
+  <tr><td>8</td><td>Intégration continue</td><td>Jour 7</td></tr>
+  <tr><td>9</td><td>Vitrine, captures, nettoyage</td><td>Jours 7 et 8</td></tr>
+</table>
+<p class="small">Les jours 2 à 5 n'ont pas été travaillés ; seule la passerelle réseau du workspace Databricks a été facturée (chapitre 8).</p>
+
+<!-- ============ 2. ARCHITECTURE ============ -->
+<h1>2. Architecture et choix techniques</h1>
+<figure>
+  <img class="plain" src="figures/architecture.png" style="width:100%">
+  <figcaption>Figure 1 — Architecture : ingestion dans ADLS, orchestration par Data Factory, couches Delta et modèle sur Databricks serverless, restitution Power BI.</figcaption>
+</figure>
+<h2>2.1 Flux de bout en bout</h2>
+<ol>
+  <li>Les neuf CSV sont déposés dans le conteneur <code>landing</code> du compte ADLS Gen2, exposé à Databricks comme un volume Unity Catalog.</li>
+  <li>Le pipeline Data Factory <code>pl_olist_daily</code> vérifie que les neuf fichiers sont là, lance le job Databricks <code>olist_pipeline</code>, puis archive les CSV dans un dossier daté.</li>
+  <li>Le job enchaîne quatre notebooks : Bronze (ingestion typée), Silver (nettoyage et contrôles), Gold (schéma en étoile et contrôles bloquants), puis scoring par le modèle champion.</li>
+  <li>Power BI importe les tables Gold et les prédictions via un SQL warehouse serverless qui s'arrête seul après l'import.</li>
+  <li>L'entraînement du modèle est un job séparé, lancé à la demande : il compare cinq modèles dans MLflow et enregistre le meilleur dans le registre Unity Catalog.</li>
+</ol>
+
+<h2>2.2 La contrainte qui a tout décidé : aucune machine virtuelle utilisable</h2>
+<p>Le compte Azure for Students n'autorise que cinq régions. Les deux qui proposent Databricks (Suisse Nord et Norvège Est) n'offrent aucune taille de machine virtuelle utilisable : toutes sont marquées <code>NotAvailableForSubscription</code>, ou dépassent le quota de 6 vCPU. Les quotas affichés en phase 0 ne garantissaient donc rien : un quota n'est pas une autorisation. Les régions qui ont des machines utilisables ne proposent pas Databricks.</p>
+<p><b>Décision (ADR-007) :</b> un workspace Databricks Premium en Suisse Nord, avec <b>calcul serverless uniquement</b>, dont les machines tournent chez Databricks et non dans l'abonnement. Il n'y a donc pas de cluster : le pipeline tourne en job serverless, Data Factory lance ce job avec l'activité <i>Databricks Job</i>, et Power BI passe par un SQL warehouse serverless. La règle « jamais de serverless » prévue au départ, motivée par un projet comparable qui avait consommé 35&nbsp;USD en trois jours de développement interactif, est devenue « jamais de développement interactif sur serverless ».</p>
+<p>Options écartées : demander au support de débloquer une taille de VM (lent et incertain sans plan de support), ou quitter Azure Databricks, ce qui aurait fait perdre la compétence visée.</p>
+
+<h2>2.3 Un environnement local aligné sur Databricks</h2>
+<p>Le poste de travail Windows avait Python 3.13 et Java 8 ; le runtime Databricks visé (18 LTS ML) utilise Python 3.12, Java 21, Spark 4.1 et Delta 4.2. Plutôt que d'installer et maintenir ces versions sur Windows, le projet utilise une image Docker (<code>python:3.12-slim</code>, OpenJDK 21, <code>pyspark 4.1.1</code>, <code>delta-spark 4.2.0</code>). Les bibliothèques de machine learning sont épinglées sur l'environnement serverless version 6 où les jobs s'exécutent (pandas 2.3.3, scikit-learn 1.7.2, LightGBM 4.6.0, mlflow-skinny 3.12.0). La même image sert à l'intégration continue.</p>
+<p>Le bénéfice s'est vérifié : le code testé en local a tourné sur Databricks <b>sans aucune modification</b>, avec les mêmes chiffres à l'unité près.</p>
+
+<h2>2.4 Organisation du code</h2>
+<p>Toute la logique vit dans le paquet <code>src/olist</code> (un module par couche, plus <code>ml/</code>), sous forme de fonctions pures testables avec de petits DataFrames. Les notebooks Databricks ne contiennent que trois lignes utiles : ajouter <code>src</code> au chemin, appeler la fonction, afficher le résultat. Un module <code>config.py</code> choisit l'emplacement des données : dossiers Delta locaux sous Docker, tables <code>olist.&lt;couche&gt;.&lt;table&gt;</code> sur Databricks.</p>
+
+<h2>2.5 Sécurité : des identités, pas des clés</h2>
+<ul>
+  <li><b>Data Factory</b> utilise son identité managée : rôle <i>Storage Blob Data Contributor</i> sur le seul conteneur <code>landing</code>, rôle <i>Contributor</i> sur le seul workspace Databricks. Aucune clé ni jeton n'est stocké dans le pipeline.</li>
+  <li><b>Databricks</b> accède au stockage par un <i>Access Connector</i>, une autre identité managée, déclaré dans Unity Catalog comme <i>storage credential</i>. Le nom du compte de stockage n'apparaît jamais dans le code.</li>
+  <li><b>Aucun secret dans Git</b> : les noms de ressources sont dans un fichier <code>.env</code> ignoré, un modèle sans secret est versionné, et l'historique a été vérifié avant publication.</li>
+  <li><b>Seule exception</b>, documentée : Power BI Desktop s'authentifie par un jeton d'accès Databricks de 30 jours, parce que la connexion Microsoft Entra ID refuse les comptes Microsoft personnels (ADR-009). Le jeton a disparu avec le workspace lors du nettoyage.</li>
+</ul>
+
+<!-- ============ 3. DONNÉES ET QUALITÉ ============ -->
+<h1>3. Données et qualité</h1>
+<h2>3.1 Exploration : mesurer avant de nettoyer</h2>
+<p>Avant d'écrire une seule règle de nettoyage, un script d'exploration a mesuré les défauts sur les données brutes, et les comptages ont été recoupés indépendamment avec le module <code>csv</code> de Python. Les constats principaux (ADR-004) :</p>
+<table>
+  <tr><th>Constat</th><th class="n">Valeur</th><th>Conséquence</th></tr>
+  <tr><td>Commandes sans date de livraison</td><td class="n">2 965</td><td>statut de livraison dédié ; exclues de la cible ML</td></tr>
+  <tr><td>Produits sans catégorie</td><td class="n">610</td><td>catégorie <code>unknown</code></td></tr>
+  <tr><td>Catégories absentes de la traduction</td><td class="n">2</td><td>traduction manuelle</td></tr>
+  <tr><td><code>review_id</code> rattachés à plusieurs commandes</td><td class="n">789</td><td>la vraie clé est <code>(review_id, order_id)</code></td></tr>
+  <tr><td>Commandes avec plusieurs avis</td><td class="n">547</td><td>garder l'avis le plus récent</td></tr>
+  <tr><td>Points de géolocalisation pour 19 015 préfixes</td><td class="n">1 000 163</td><td>médiane des coordonnées par préfixe</td></tr>
+  <tr><td>Clients techniques / clients réels</td><td class="n">99 441 / 96 096</td><td>dimension client sur l'identifiant réel</td></tr>
+  <tr><td>Commandes payées sans aucun article</td><td class="n">775</td><td>contrôle d'avertissement</td></tr>
+  <tr><td>Écart paiements − (prix + fret)</td><td class="n">165 318,88 BRL</td><td>à expliquer avant de modéliser</td></tr>
+</table>
+
+<h2>3.2 Bronze : la source, typée et protégée</h2>
+<p>Chaque CSV est lu avec un <b>schéma explicite</b> : codes postaux en texte pour garder les zéros initiaux, montants en <code>DECIMAL(10,2)</code>, dates en horodatage avec une session forcée en UTC pour qu'aucune date ne se décale. La lecture est en mode <code>FAILFAST</code> : une valeur hors schéma arrête le run au lieu de devenir silencieusement <code>null</code>. Les commentaires d'avis contiennent des retours à la ligne, d'où une lecture multi-lignes : on obtient bien 99&nbsp;224 avis, et non les 104&nbsp;719 lignes physiques du fichier. Chaque table reçoit deux colonnes de traçabilité, <code>_ingested_at</code> et <code>_source_file</code>.</p>
+<p>Un piège de test a été découvert en chemin : <code>count()</code> sur un CSV ne parse pas les colonnes, donc ne déclenche pas <code>FAILFAST</code>. Le test utilise <code>collect()</code> ; l'écriture Delta, elle, parse tout et protège bien l'ingestion.</p>
+
+<h2>3.3 Silver : des règles issues d'une enquête</h2>
+<p>Trois constats ont changé de sens après enquête, ce qui justifie la règle « enquêter avant d'écrire une règle » :</p>
+<ul>
+  <li>Les 61 commandes « livrées avant leur approbation » sont toutes livrées <i>après l'achat</i> : c'est la date d'approbation qui est enregistrée en retard. Elles sont gardées, avec un avertissement.</li>
+  <li>L'écart de 165&nbsp;319&nbsp;BRL entre paiements et articles vient à 98&nbsp;% des 775 commandes payées mais jamais expédiées (indisponibles ou annulées) ; le reste correspond aux intérêts des paiements en plusieurs fois.</li>
+  <li>Les villes clients étaient déjà propres : aucune règle de normalisation n'a été ajoutée.</li>
+</ul>
+<p>Les règles appliquées : un statut <code>delivery_status</code> fondé sur la présence de la date de livraison (et non sur le statut déclaratif, faux pour 8 commandes), un avis par commande, la catégorie <code>unknown</code>, la correction des noms de colonnes mal orthographiés de la source, et la géolocalisation agrégée par préfixe après mise en quarantaine des 42 points situés hors du Brésil.</p>
+<p>Les lignes invalides ne sont jamais supprimées en silence : elles vont dans une table unique <code>silver.quarantine</code> qui garde la ligne complète en JSON et la règle violée.</p>
+
+<h2>3.4 Contrôles de qualité</h2>
+<p>À chaque run, 23 contrôles sont exécutés et historisés dans <code>gold.dq_results</code>. Les 16 contrôles de sévérité <code>error</code> (unicité et non-nullité des clés, intégrité référentielle, livraison après achat) font échouer le run ; les 7 contrôles <code>warn</code> comptent les défauts connus sans bloquer. Résultat du run de référence, identique en local et sur Databricks :</p>
+<table>
+  <tr><th>Table</th><th>Contrôle</th><th>Sévérité</th><th class="n">Lignes en défaut</th></tr>
+  <tr><td>orders, customers, products, sellers, order_items, order_payments, order_reviews, geolocation</td><td>16 contrôles : clés uniques et non nulles, clés étrangères, un avis par commande, catégorie renseignée, livraison après achat</td><td>error</td><td class="n">0 (16 / 16 passent)</td></tr>
+  <tr><td>orders</td><td>payées sans article</td><td>warn</td><td class="n">775</td></tr>
+  <tr><td>customers</td><td>préfixe sans géolocalisation</td><td>warn</td><td class="n">279</td></tr>
+  <tr><td>orders</td><td>remise au transporteur avant achat</td><td>warn</td><td class="n">166</td></tr>
+  <tr><td>orders</td><td>livrées avant approbation</td><td>warn</td><td class="n">61</td></tr>
+  <tr><td>quarantine</td><td>lignes en quarantaine</td><td>warn</td><td class="n">42</td></tr>
+  <tr><td>order_payments</td><td>paiements à zéro</td><td>warn</td><td class="n">9</td></tr>
+  <tr><td>orders</td><td>sans paiement</td><td>warn</td><td class="n">1</td></tr>
+</table>
+<div class="pair">
+  <figure><img src="../screenshots/phase4_job_silver_quality.png"><figcaption>Figure 2 — Tâche Silver sur Databricks : contrôles qualité.</figcaption></figure>
+  <figure><img src="../screenshots/phase4_job_gold_checks.png"><figcaption>Figure 3 — Tâche Gold : les 11 contrôles bloquants passent.</figcaption></figure>
+</div>
+
+<!-- ============ 4. GOLD ET POWER BI ============ -->
+<h1>4. Modèle Gold et analyse Power BI</h1>
+<h2>4.1 Un schéma en étoile à deux faits</h2>
+<figure>
+  <img class="plain" src="../star_schema.svg" style="width:88%">
+  <figcaption>Figure 4 — Schéma en étoile Gold : deux faits à grain différent partagent quatre dimensions.</figcaption>
+</figure>
+<p>Les paiements et les avis existent au niveau de la commande, les prix au niveau de l'article. Les mélanger dans une seule table doublerait les montants des commandes à plusieurs articles. Le modèle Gold a donc <b>deux faits</b> : <code>fact_orders</code> (99&nbsp;441 commandes, avec totaux, paiement principal, délais, retard et note) et <code>fact_order_items</code> (112&nbsp;650 articles, avec prix et fret). Ils partagent quatre dimensions : client (96&nbsp;096 clients réels, avec l'adresse de leur dernière commande), vendeur, produit et date (1&nbsp;096 jours couvrant des années entières, pour l'intelligence temporelle de Power BI).</p>
+<p>Les clés de substitution sont des rangs dans l'ordre de la clé naturelle : stables d'une reconstruction à l'autre sur les mêmes données. Il n'y a pas de membre « inconnu » dans les dimensions, parce que les contrôles Silver garantissent toutes les clés étrangères.</p>
+<p>Onze contrôles SQL bloquants terminent la construction : volumes Gold égaux à Silver, sommes des prix et des paiements identiques entre couches et entre les deux faits, aucune clé de fait nulle, et non-régression de l'histoire (taux de retard et notes). Un contrôle en échec lève une exception et arrête le job.</p>
+
+<h2>4.2 Définir le retard au jour près</h2>
+<p>Le chiffre de 8,1&nbsp;% de retards circule dans la plupart des analyses de ce dataset. L'enquête montre qu'il est surestimé : la date de livraison estimée est <b>toujours à minuit</b> (aucune exception sur 99&nbsp;441 commandes). Comparer des horodatages compte donc en retard toute commande livrée le jour promis après minuit, soit 1&nbsp;292 commandes dont la note moyenne (4,03) est proche de celle des commandes à l'heure.</p>
+<table>
+  <tr><th>Définition du retard</th><th class="n">Taux de retard</th><th class="n">Note en retard / à l'heure</th></tr>
+  <tr><td>Horodatage (chiffre courant)</td><td class="n">8,11 %</td><td class="n">2,57 / 4,29</td></tr>
+  <tr><td><b>Jour (retenue, ADR-006)</b></td><td class="n"><b>6,77 %</b></td><td class="n"><b>2,27 / 4,29</b></td></tr>
+</table>
+<p>La définition au jour près est utilisée partout : contrôles SQL, mesures DAX et cible du modèle. L'histoire en sort renforcée : l'écart de satisfaction est plus marqué (2,27 au lieu de 2,57).</p>
+
+<h2>4.3 Le modèle Power BI</h2>
+<ul>
+  <li>Relations toutes en un-à-plusieurs, filtrage dans un seul sens, <b>aucune relation entre les deux faits</b> ; la détection automatique des relations est désactivée, sinon Power BI relierait les deux faits par <code>order_id</code> et doublerait les montants.</li>
+  <li>Le vendeur et la catégorie ne sont reliés qu'aux articles. Pour calculer un taux de retard par vendeur, la mesure transmet les commandes visibles avec <code>TREATAS</code> plutôt que d'activer un filtrage bidirectionnel :
+  <pre>Late Rate % (items) =
+CALCULATE ( [Late Rate %], TREATAS ( VALUES ( fact_order_items[order_id] ), fact_orders[order_id] ) )</pre></li>
+  <li>Les classements par état vendeur et par catégorie ne retiennent que les groupes d'au moins 100 commandes : un état vendeur affichait 33&nbsp;% de retard sur 3 commandes seulement.</li>
+  <li>Toutes les mesures sont copiées en texte dans <code>powerbi/measures.dax</code>, avec leurs valeurs attendues recalculées par Spark, pour qu'une erreur de filtre se voie immédiatement.</li>
+</ul>
+
+<h2>4.4 Ce que montrent les données</h2>
+<figure>
+  <img src="../../powerbi/screenshots/page1_vue_ensemble.png" style="width:80%">
+  <figcaption>Figure 5 — Page « Combien vend Olist, et où ? » : 13,59 M R$ de chiffre d'affaires, panier moyen de 137,75 R$, croissance de +137 % de janvier-août 2018 sur janvier-août 2017.</figcaption>
+</figure>
+<figure>
+  <img src="../../powerbi/screenshots/page2_logistique.png" style="width:80%">
+  <figcaption>Figure 6 — Page « Où et quand les commandes arrivent en retard ? ».</figcaption>
+</figure>
+<ul>
+  <li><b>Dans le temps :</b> trois pics de retard, en novembre 2017 (12,4&nbsp;%, période du Black Friday), février 2018 (14,1&nbsp;%) et mars 2018 (19,0&nbsp;%).</li>
+  <li><b>Dans l'espace :</b> de 21&nbsp;% dans l'Alagoas à 3&nbsp;% en Amazonas selon l'état du client. Côté vendeurs, 60&nbsp;% sont à São Paulo (7,3&nbsp;% de retard) ; le Maranhão atteint 19&nbsp;% sur 392 commandes.</li>
+  <li><b>Délais :</b> Olist promet en moyenne 24,4 jours et livre en 12,5. Le délai promis est donc très prudent en moyenne : les retards se concentrent sur certains mois et certaines routes plutôt que sur un délai trop court.</li>
+</ul>
+<figure>
+  <img src="../../powerbi/screenshots/page3_satisfaction.png" style="width:80%">
+  <figcaption>Figure 7 — Page « Les retards détruisent la satisfaction » : la note chute dès le premier jour de retard.</figcaption>
+</figure>
+<div class="callout"><p><b>Réponse à la première partie de la question :</b> oui, les retards détruisent la satisfaction. Une commande en retard reçoit en moyenne 2,27/5 contre 4,29/5, et 62&nbsp;% d'avis négatifs (note ≤ 2) contre 9&nbsp;%. La figure 7 montre une rupture nette : la note est stable tant que la commande est en avance, puis s'effondre dès le jour 1 de retard et se stabilise autour de 1,6 au-delà d'une semaine.</p></div>
+
+<!-- ============ 5. CLOUD ET ORCHESTRATION ============ -->
+<h1>5. Déploiement cloud et orchestration</h1>
+<h2>5.1 Stockage et Unity Catalog</h2>
+<p>Un compte ADLS Gen2 (espace de noms hiérarchique activé) porte quatre conteneurs : <code>landing</code>, <code>bronze</code>, <code>silver</code> et <code>gold</code>. Dans Databricks, Unity Catalog relie ce stockage au catalogue <code>olist</code> sans clé :</p>
+<ul>
+  <li>un <i>storage credential</i> fondé sur l'identité managée de l'Access Connector ;</li>
+  <li>quatre <i>external locations</i>, une par conteneur ;</li>
+  <li>les schémas <code>bronze</code>, <code>silver</code> et <code>gold</code>, dont l'emplacement géré est le conteneur du même nom, un schéma <code>ml</code> pour les modèles, et un volume externe <code>landing.raw</code> pointant sur le dossier des CSV.</li>
+</ul>
+<p>Tous ces objets ont été créés depuis Catalog Explorer, sans aucun calcul, donc à coût nul. Le repo GitHub est synchronisé dans Databricks par un <i>Git folder</i>, et le job <code>olist_pipeline</code> exécute les notebooks directement depuis ce dossier.</p>
+<div class="pair">
+  <figure><img src="../screenshots/phase9_adls_containers.png"><figcaption>Figure 8 — Les quatre conteneurs ADLS.</figcaption></figure>
+  <figure><img src="../screenshots/phase4_uc_volume_raw.png"><figcaption>Figure 9 — Le volume Unity Catalog des CSV bruts.</figcaption></figure>
+</div>
+<p><b>Premier run serverless (Jour 1) :</b> réussi de bout en bout, avec les mêmes chiffres qu'en local à l'unité près. La tâche Bronze a pris 4&nbsp;min&nbsp;14&nbsp;s contre environ 47&nbsp;s en local : c'est le démarrage du serverless en mode standard (moins cher que le mode « performance optimized ») et l'écriture sur ADLS. Le run a coûté 0,22&nbsp;USD.</p>
+
+<h2>5.2 Le pipeline Data Factory</h2>
+<figure>
+  <img src="../screenshots/phase5_adf_pipeline.png" style="width:88%">
+  <figcaption>Figure 10 — Pipeline <code>pl_olist_daily</code> dans ADF Studio.</figcaption>
+</figure>
+<ol>
+  <li><b>Get Metadata</b> liste le dossier <code>landing/olist</code>.</li>
+  <li><b>If Condition</b> compare le nombre de fichiers au paramètre <code>expectedFileCount</code> (9) ; sinon, une activité <i>Fail</i> arrête le run avec le nombre trouvé (<code>MISSING_FILES</code>).</li>
+  <li><b>Job Databricks</b> lance <code>olist_pipeline</code> en serverless, avec l'identité managée de la factory.</li>
+  <li><b>Copy</b> archive les CSV dans <code>landing/archive/&lt;date&gt;/</code>, la date venant du paramètre <code>runDate</code> ou de l'heure prévue du déclencheur.</li>
+  <li>Si le job échoue, une seconde activité <i>Fail</i> reprend son message d'erreur (<code>JOB_FAILED</code>). Sans elle, un chemin « en cas d'échec » qui réussit rendrait le pipeline vert alors que le job a échoué.</li>
+</ol>
+<p>Le plan initial prévoyait une copie de <code>landing</code> vers <code>bronze</code> dans Data Factory. Elle a été écartée : le notebook Bronze écrit déjà cette couche avec un schéma explicite et <code>FAILFAST</code>, et une copie aurait dupliqué la couche (ADR-008).</p>
+<p>L'intégration Git de Data Factory versionne tout le JSON (pipeline, dataset, services liés, déclencheur) dans le dossier <code>adf/</code> du dépôt : chaque enregistrement dans ADF Studio devient un commit. Le déclencheur quotidien est publié à l'état arrêté ; il transmet <code>runDate</code> à partir de l'heure <i>prévue</i>, pour qu'un run relancé plus tard garde sa date.</p>
+<p>Deux constats de mise au point : le test de connexion du service lié Databricks échoue toujours en mode serverless (erreur 27001, « Cluster Serverless does not exist ») alors que le service lié fonctionne au run ; et un Debug avec l'activité Job désactivée permet de tester tout le reste du pipeline sans coût Databricks.</p>
+<figure>
+  <img src="../screenshots/phase7_adf_run_with_scoring.png" style="width:88%">
+  <figcaption>Figure 11 — Run complet vert depuis Data Factory : le job Databricks (Bronze → Silver → Gold → scoring) prend 14 min 35 s, l'archivage 20 s.</figcaption>
+</figure>
+
+<h2>5.3 Traçabilité</h2>
+<figure>
+  <img src="../screenshots/phase9_uc_lineage_fact_orders.png" style="width:88%">
+  <figcaption>Figure 12 — Lineage Unity Catalog de <code>fact_orders</code> : tables Silver en amont, notebooks Gold et scoring en aval.</figcaption>
+</figure>
+<p>Unity Catalog reconstruit automatiquement le lineage : pour <code>fact_orders</code>, il montre les six tables Silver en amont et, en aval, le notebook de scoring qui la lit. C'est une documentation vivante du pipeline, sans effort supplémentaire.</p>
+
+<h2>5.4 Power BI sur Databricks</h2>
+<p>Le rapport Power BI, construit d'abord sur des fichiers Parquet locaux, a été basculé vers Databricks en changeant seulement la source des six requêtes : relations, mesures et visuels ont été conservés, et les cartes affichaient toujours 6,77&nbsp;% / 2,27 / 4,29. La connexion passe par le <i>Serverless Starter Warehouse</i> fourni avec le workspace, réduit à la taille 2X-Small avec arrêt après 5 minutes (un nouveau warehouse est par défaut en X-Large avec arrêt après 10 minutes). En mode Import, le warehouse ne tourne que le temps d'une actualisation.</p>
+
+<!-- ============ 6. MACHINE LEARNING ============ -->
+<h1>6. Machine learning : prédire un retard dès la commande</h1>
+<h2>6.1 Cible et population</h2>
+<p>La cible est <code>is_late</code>, la même définition au jour près que dans Power BI, lue directement dans <code>gold.fact_orders</code>. La population d'apprentissage est celle du taux de retard : les commandes livrées avec une date de livraison. Toutes les commandes sont scorées, y compris celles qui n'ont jamais été livrées.</p>
+
+<h2>6.2 Des features connues au moment de l'achat, et rien d'autre</h2>
+<p>La règle est non négociable : le modèle ne peut utiliser que ce qui est connu au moment où le client clique sur « acheter ».</p>
+<ul>
+  <li><b>Commande :</b> délai promis (date estimée − achat), valeur, fret, ratio fret/valeur, nombre d'articles et de vendeurs, poids et volume totaux, type de paiement, nombre d'échéances, jour de la semaine et heure.</li>
+  <li><b>Géographie :</b> état du client (adresse de <i>cette</i> commande, et non la dernière adresse connue), état du vendeur principal (article le plus cher), distance client-vendeur calculée par la formule de haversine.</li>
+  <li><b>Historique :</b> pour le vendeur et pour la route état vendeur → état client, le nombre de commandes <b>déjà livrées avant l'achat</b> et leur part en retard.</li>
+  <li><b>Exclus :</b> dates de livraison et de remise au transporteur, statut final, avis, tout agrégat calculé sur toute la période.</li>
+</ul>
+<p>Le point le plus subtil est l'historique. Une commande du même vendeur achetée plus tôt mais encore en route n'a pas d'issue connue au moment de l'achat : la compter serait une fuite. L'implémentation utilise une jointure temporelle (<code>merge_asof</code>, inégalité stricte) sur la date de livraison, et un test unitaire vérifie précisément ce cas.</p>
+
+<h2>6.3 Protocole : un backtest glissant plutôt qu'une validation fixe</h2>
+<p>Le découpage est temporel, jamais aléatoire : en production, on prédit toujours le futur à partir du passé. Les commandes achetées à partir du 1<sup>er</sup> juin 2018 forment le <b>test</b>, lu uniquement pour le rapport final (18&nbsp;603 commandes, 3,6&nbsp;% de retards). Le plan prévoyait une validation fixe sur avril-mai 2018. Elle s'est révélée inutilisable, parce que le taux de retard dérive fortement : 7,9&nbsp;% sur l'entraînement (qui contient le pic de février-mars), 5,5&nbsp;% en avril-mai, 3,6&nbsp;% sur le test. Sur une seule fenêtre de deux mois, le classement des modèles s'inversait d'une variante à l'autre.</p>
+<p>Le choix du modèle se fait donc par <b>backtest glissant</b> : pour chacun des huit mois d'octobre 2017 à mai 2018, un modèle entraîné sur tout le passé prédit ce mois. La métrique est le <i>lift</i>, la PR-AUC divisée par le taux de retard du mois, qui rend les mois comparables. Le champion est le modèle au meilleur lift moyen, et il doit battre la règle de base. Le modèle final suit la même recette (entraîné sur tout ce qui précède le test), et son seuil maximise le F1 sur les prédictions hors échantillon du backtest.</p>
+<figure>
+  <img class="plain" src="figures/backtest_lift.png" style="width:88%">
+  <figcaption>Figure 13 — Lift mensuel au backtest. Le champion bat la règle 7 mois sur 8 ; en avril 2018, la règle simple fait mieux que tous les modèles.</figcaption>
+</figure>
+
+<h2>6.4 Quatre itérations, racontées honnêtement</h2>
+<p>Le test a été regardé quatre fois pendant la mise au point, et ce rapport le dit :</p>
+<ol>
+  <li>Avec le mois d'achat et une validation fixe, aucun modèle ne battait la règle en validation.</li>
+  <li>Le mois a été remplacé par l'historique de la route et par le taux de retard des 30 derniers jours : meilleur en validation, pire au test.</li>
+  <li>Le choix du modèle est passé au backtest glissant.</li>
+  <li>Le modèle final a été aligné sur la recette évaluée par le backtest.</li>
+</ol>
+<p>Chaque changement a une raison de protocole : le mois mémorise un choc propre à 2018 qui ne se répète pas ; une fenêtre de validation unique est instable ; le modèle final doit suivre la recette qui a été évaluée. Le choix du champion n'utilise jamais le test. Le chiffre de test reste néanmoins légèrement optimiste, puisqu'il a été vu.</p>
+
+<h2>6.5 Résultats</h2>
+<table>
+  <tr><th>Modèle</th><th class="n">Lift backtest (mois battant la règle)</th><th class="n">PR-AUC test</th><th class="n">ROC-AUC test</th><th class="n">Précision / rappel test</th></tr>
+  <tr><td>Règle : km par jour promis</td><td class="n">1,84</td><td class="n">0,050</td><td class="n">0,500</td><td class="n">3,9 % / 40,5 %</td></tr>
+  <tr><td>Régression logistique (pondérée)</td><td class="n">1,99 (6/8)</td><td class="n"><b>0,074</b></td><td class="n"><b>0,702</b></td><td class="n">6,2 % / 70,7 %</td></tr>
+  <tr><td>LightGBM</td><td class="n">2,20 (5/8)</td><td class="n">0,038</td><td class="n">0,495</td><td class="n">4,0 % / 26,9 %</td></tr>
+  <tr><td>LightGBM pondéré</td><td class="n">2,21 (5/8)</td><td class="n">0,038</td><td class="n">0,500</td><td class="n">3,9 % / 18,2 %</td></tr>
+  <tr><td><b>LightGBM sans taux récent (champion)</b></td><td class="n"><b>2,25 (7/8)</b></td><td class="n">0,056</td><td class="n">0,538</td><td class="n">4,9 % / 27,4 %</td></tr>
+</table>
+<div class="pair">
+  <figure><img class="plain" src="figures/pr_curve_test.png"><figcaption>Figure 14 — Courbes précision-rappel sur le test.</figcaption></figure>
+  <figure><img class="plain" src="figures/feature_importance.png"><figcaption>Figure 15 — Importance des variables du champion (gain).</figcaption></figure>
+</div>
+<p>Les variables les plus utiles sont l'historique de la route (nombre de commandes livrées et part en retard, près de 30&nbsp;% du gain à elles deux), l'état du client et le délai promis.</p>
+<div class="callout"><p><b>Lecture honnête.</b> Le champion bat la règle de base sur le test (0,056 contre 0,050), mais de peu. Prédire un retard dès la commande reste difficile ici, parce que les retards viennent surtout de chocs de période (le pic de février-mars 2018) que les données de commande ne voient pas. La régression logistique généralise mieux sur une période calme : elle n'a pas été promue après coup, car ce serait choisir le modèle sur le test. En production, il faudrait des signaux externes (calendrier des fêtes, capacité des transporteurs, météo, grèves), un réentraînement mensuel et un suivi de la dérive.</p></div>
+
+<h2>6.6 MLflow, registre et scoring</h2>
+<p>Chaque entraînement crée cinq runs dans l'expérience MLflow <code>/Shared/olist_late_delivery</code>, avec les paramètres, les métriques du backtest et du test, et l'importance des variables. Le champion est enregistré dans Unity Catalog sous <code>olist.ml.late_delivery</code>, avec l'alias <code>champion</code> et son seuil en tag. Un garde-fou empêche l'enregistrement si aucun modèle ne bat la règle de base.</p>
+<div class="pair">
+  <figure><img src="../screenshots/phase7_mlflow_runs.png"><figcaption>Figure 16 — Les cinq modèles comparés dans MLflow.</figcaption></figure>
+  <figure><img src="../screenshots/phase7_uc_model_champion.png"><figcaption>Figure 17 — Le modèle dans Unity Catalog, alias <code>champion</code>.</figcaption></figure>
+</div>
+<p>L'entraînement sur Databricks a reproduit exactement le run local : même seuil (0,1314) et même répartition des prédictions. Le scoring est une tâche du job <code>olist_pipeline</code>, après Gold : il charge <code>models:/olist.ml.late_delivery@champion</code> et écrit <code>gold.fact_late_predictions</code>, une ligne par commande, avec une colonne <code>dataset</code> (<code>fit</code>, <code>test</code> ou <code>unlabeled</code>) qui indique sur quelles lignes juger le modèle. L'environnement serverless standard contient déjà scikit-learn et MLflow ; seule la dépendance <code>lightgbm==4.6.0</code> est ajoutée aux tâches.</p>
+<figure>
+  <img src="../../powerbi/screenshots/page4_predictions.png" style="width:92%">
+  <figcaption>Figure 18 — Page « Peut-on prédire un retard dès la commande ? » : sur le test, 4,9 % de retards parmi les commandes signalées contre 3,3 % pour les autres ; la part de retards monte jusqu'à environ 30 % dans les tranches de probabilité 0,50-0,60, qui ne comptent que 71 commandes.</figcaption>
+</figure>
+<p>La page Power BI met le modèle à l'épreuve sur le seul test : 57&nbsp;% des commandes ont une probabilité inférieure à 0,05, et seules 114 dépassent 0,5. Le modèle sait isoler un petit groupe plus risqué, mais ne peut pas prédire la plupart des retards : la réponse à la seconde partie de la question est donc « partiellement ».</p>
+
+<!-- ============ 7. INDUSTRIALISATION ============ -->
+<h1>7. Industrialisation</h1>
+<h2>7.1 Tests</h2>
+<p>Le projet compte 29 tests pytest, exécutés dans l'image Docker avec un Spark local et Delta :</p>
+<ul>
+  <li><b>Bronze</b> : comptages égaux aux CSV (dont 99&nbsp;224 avis), dates relues identiques à la source, arrêt sur valeur hors schéma ;</li>
+  <li><b>Silver</b> : une fonction de nettoyage testée par règle, avec cinq à dix lignes d'exemple ;</li>
+  <li><b>Gold</b> : retard compté au jour et non à l'horodatage, agrégats de <code>fact_orders</code>, client réel, calendrier, et un contrôle SQL en échec qui arrête bien le run ;</li>
+  <li><b>ML</b> : distance, historique limité aux livraisons déjà connues, taux récent, découpage temporel, plis du backtest, construction des features.</li>
+</ul>
+<p>Les tests qui lisent les données Kaggle (absentes du dépôt) se désactivent d'eux-mêmes : sans données, 19 tests passent et 10 sont ignorés ; avec les données, les 29 passent.</p>
+
+<h2>7.2 Intégration continue</h2>
+<p>Un workflow GitHub Actions s'exécute à chaque push sur <code>main</code> et à chaque pull request : il construit l'image Docker du projet, lance le linter <code>ruff</code> puis les tests. Le premier run a été vert en 1&nbsp;min&nbsp;56&nbsp;s. Les règles de ruff sont fixées explicitement dans <code>pyproject.toml</code>, pour qu'une mise à jour de l'outil ne change pas silencieusement ce que la CI vérifie.</p>
+<figure>
+  <img src="../screenshots/phase8_ci_green.png" style="width:82%">
+  <figcaption>Figure 19 — Premier run de l'intégration continue : construction de l'image, lint, tests.</figcaption>
+</figure>
+<p>La CI ne déploie pas sur Databricks. Un déploiement par Databricks Asset Bundles demanderait un service principal fédéré en OIDC, ce qu'un compte Microsoft personnel sur Azure for Students a peu de chances de pouvoir créer ; les jobs se mettent à jour par le Git folder (ADR-011).</p>
+
+<h2>7.3 Documentation des décisions</h2>
+<p>Onze décisions d'architecture (ADR) consignent le contexte, le choix, les options écartées et les conséquences de chaque arbitrage structurant (annexe B). Ce journal a servi pendant le projet, pour ne pas rediscuter une décision déjà prise, autant qu'il sert aujourd'hui à justifier les choix.</p>
+
+<!-- ============ 8. COÛTS ============ -->
+<h1>8. Coûts et exploitation</h1>
+<h2>8.1 Coût réel</h2>
+<p>Le projet a coûté <b>11,14&nbsp;USD</b> sur les huit jours, pour un budget estimé de 15 à 35&nbsp;USD et un crédit de 100&nbsp;USD :</p>
+<table>
+  <tr><th>Poste</th><th class="n">Coût</th><th>Détail</th></tr>
+  <tr><td>NAT Gateway</td><td class="n">6,70 USD</td><td>facturée en continu du Jour 1 au Jour 8</td></tr>
+  <tr><td>Calcul Databricks serverless</td><td class="n">3,58 USD</td><td>0,22 (Jour 1, premier job) + 1,60 (Jour 6, run ADF et warehouse) + 1,76 (Jour 7, entraînement, run complet avec scoring, imports Power BI)</td></tr>
+  <tr><td>Virtual Network</td><td class="n">0,74 USD</td><td>probablement l'adresse IP publique de la NAT Gateway (déduit, non vérifié)</td></tr>
+  <tr><td>Data Factory</td><td class="n">0,09 USD</td><td>activités des runs et du Debug</td></tr>
+  <tr><td>Stockage et bande passante</td><td class="n">0,03 USD</td><td>CSV, tables Delta et archives</td></tr>
+  <tr><td><b>Total</b></td><td class="n"><b>11,14 USD</b></td><td></td></tr>
+</table>
+<figure>
+  <img src="../screenshots/cost_total_jour8.png" style="width:90%">
+  <figcaption>Figure 20 — Coûts quotidiens par service, du Jour 1 au Jour 8 : la NAT Gateway (bleu clair) coûte chaque jour, travaillé ou non.</figcaption>
+</figure>
+
+<h2>8.2 L'enseignement principal : une ressource réseau inutile</h2>
+<p>Les deux tiers de la facture viennent d'une ressource qui n'a jamais servi. Un workspace Databricks en mode <i>Hybrid</i>, créé avec le réseau par défaut, active la connectivité sécurisée sans IP publique, et Databricks crée alors une NAT Gateway dans un groupe de ressources managé et verrouillé. Elle est facturée à l'heure, même sans aucune exécution, pour un calcul classique que l'abonnement ne pouvait de toute façon pas lancer. Elle ne peut pas être désactivée : Microsoft ne permet de couper la connectivité sécurisée que temporairement.</p>
+<p>Le coût a été détecté au Jour 6, au premier relevé détaillé, en voyant la facture monter les jours sans travail. La décision a été de garder le workspace jusqu'à la fin du projet plutôt que de tout reconstruire au milieu, puis de le supprimer. À refaire, il faudrait créer d'emblée un workspace <i>Serverless</i>, qui n'a pas de réseau classique.</p>
+
+<h2>8.3 Comment les coûts ont été contenus</h2>
+<ul>
+  <li>Un budget mensuel de 20&nbsp;USD avec alertes à 50, 80 et 100&nbsp;%, créé avant toute ressource.</li>
+  <li>Aucun développement interactif sur le cloud : le code est développé et testé en local, le cloud n'exécute que des jobs.</li>
+  <li>Le mode standard du serverless plutôt que « performance optimized ».</li>
+  <li>Un SQL warehouse réduit au minimum, arrêté après 5 minutes ; Power BI en mode Import.</li>
+  <li>Un Debug Data Factory sans l'activité Databricks ; un déclencheur quotidien publié à l'état arrêté.</li>
+  <li>Le coût relevé après chaque étape et noté dans le journal.</li>
+</ul>
+
+<h2>8.4 Nettoyage à zéro dollar, configuration conservée</h2>
+<p>En fin de projet, l'objectif était une consommation nulle tout en gardant visible la configuration réalisée. Le workspace Databricks a été supprimé, puis son groupe managé, qui n'avait pas disparu seul vingt minutes plus tard. Data Factory (pipeline et déclencheur arrêté), l'Access Connector et le compte de stockage ont été conservés, ses quatre conteneurs vidés : une factory sans exécution et un compte vide ne coûtent rien. Les données se reconstruisent à partir des CSV et du code. Le Jour 8 apparaît quasiment nul dans la facture.</p>
+
+<!-- ============ 9. BILAN ============ -->
+<h1>9. Bilan</h1>
+<h2>9.1 Objectifs atteints</h2>
+<table>
+  <tr><th>Phase</th><th>Définition de fini</th><th>Résultat</th></tr>
+  <tr><td>1-2</td><td>Bronze égal aux CSV ; Silver et contrôles sans échec bloquant</td><td>9 tables = CSV ; 16/16 contrôles bloquants</td></tr>
+  <tr><td>3</td><td>Chiffres de l'histoire retrouvés ; relations Power BI propres</td><td>6,77 % ; 2,27 / 4,29 ; 11/11 contrôles Gold</td></tr>
+  <tr><td>4</td><td>Tables visibles dans Unity Catalog ; mêmes chiffres qu'en local</td><td>atteint, coût du run noté (0,22 USD)</td></tr>
+  <tr><td>5</td><td>Run vert depuis ADF ; JSON dans Git ; déclencheur arrêté</td><td>atteint</td></tr>
+  <tr><td>6</td><td>Rapport, PDF et captures ; une question par page</td><td>4 pages, PDF, captures</td></tr>
+  <tr><td>7</td><td>Modèle supérieur à la règle ; ≥ 3 modèles dans MLflow ; alias ; prédictions par ADF</td><td>atteint (0,056 contre 0,050), 5 modèles</td></tr>
+  <tr><td>8</td><td>CI verte</td><td>atteint, version sans déploiement</td></tr>
+  <tr><td>9</td><td>README lisible en deux minutes ; plus aucune ressource facturable</td><td>atteint</td></tr>
+</table>
+
+<h2>9.2 Limites connues</h2>
+<ul>
+  <li>Le modèle bat la règle de base de peu, et la régression logistique fait mieux au test sans avoir été promue.</li>
+  <li>Pas de recherche d'hyperparamètres ni d'explications SHAP ; le modèle final voit des retards de fin de période qu'on n'aurait pas encore connus à la date de coupure.</li>
+  <li>Power BI s'authentifie par jeton ; pas de publication sur Power BI Service, qui exige un compte professionnel.</li>
+  <li>La CI teste sans déployer.</li>
+  <li>Les clés de substitution par rang utilisent une fenêtre globale sur une seule partition : à remplacer par un hachage au-delà de quelques millions de lignes.</li>
+</ul>
+
+<h2>9.3 En production, ou à cent fois le volume</h2>
+<ul>
+  <li>Ingestion incrémentale (Auto Loader, <code>MERGE</code>) au lieu d'un remplacement complet, et partitionnement par date.</li>
+  <li>Environnements de développement et de production séparés, déploiement par Databricks Asset Bundles depuis la CI, identités fédérées.</li>
+  <li>Réseau privé (VNet injection, Private Endpoints), comptes professionnels et authentification unique pour Power BI.</li>
+  <li>Supervision : alertes Data Factory, suivi des contrôles qualité, dérive du modèle et réentraînement mensuel.</li>
+  <li>Spark n'était pas nécessaire pour 100&nbsp;000 lignes, et le machine learning est d'ailleurs en pandas ; il l'est pour un pipeline qui doit passer à l'échelle sans réécriture.</li>
+</ul>
+
+<h2>9.4 Enseignements</h2>
+<ul>
+  <li><b>Un quota n'est pas une autorisation</b> : vérifier les tailles réellement disponibles avant de bâtir une architecture.</li>
+  <li><b>Enquêter avant d'écrire une règle</b> : la clé des avis, le retard au jour près et les approbations tardives ont tous changé de sens après vérification.</li>
+  <li><b>Le local d'abord</b> : un code testé en local a tourné sur Databricks sans modification, et le cloud a coûté peu parce qu'il n'a servi qu'à exécuter.</li>
+  <li><b>Le protocole compte plus que le modèle</b> : sous une forte dérive, une validation fixe trompe ; le backtest glissant et l'honnêteté sur ce que le test a vu valent plus qu'un chiffre flatteur.</li>
+  <li><b>Lire la facture tôt</b> : le premier poste de coût était une ressource invisible, détectée seulement en analysant les coûts par service.</li>
+</ul>
+
+<!-- ============ ANNEXES ============ -->
+<h1>Annexes</h1>
+<h2>A. Journal Jour 1 à Jour 8</h2>
+<table>
+  <tr><th>Jour</th><th>Travail</th></tr>
+  <tr><td>Jour 1</td><td>Phase 0 : dépôt, image Docker, benchmark de neuf projets comparables, Azure CLI, budget, fournisseurs, quotas. Phases 1 à 3 en local : Bronze, Silver et contrôles, Gold et contrôles SQL, maquette Power BI. Phase 4 : constat « aucune VM utilisable », passage au serverless, ADLS, workspace, Unity Catalog, premier job réussi. Phase 5, bloc A : factory et rôles limités.</td></tr>
+  <tr><td>Jours 2 à 5</td><td>Aucun travail ; seule la NAT Gateway est facturée.</td></tr>
+  <tr><td>Jour 6</td><td>Relevé des coûts et découverte de la NAT Gateway. Phase 5, bloc B : intégration Git, services liés, pipeline, Debug, run vert. Phase 6, bloc A : warehouse, jeton, bascule du rapport vers Databricks.</td></tr>
+  <tr><td>Jour 7</td><td>Phase 6, bloc B : pages Vue d'ensemble, Logistique, Satisfaction. Phase 7 : features, backtest, MLflow, entraînement sur Databricks, scoring dans le pipeline, page Prédictions. Phase 8 : intégration continue. Phase 9 : README et notes d'entretien.</td></tr>
+  <tr><td>Jour 8</td><td>Captures finales, nettoyage Azure, coût total.</td></tr>
+</table>
+
+<h2>B. Décisions d'architecture (ADR)</h2>
+<table>
+  <tr><th>ADR</th><th>Décision</th></tr>
+  <tr><td>001</td><td>Environnement local Docker aligné sur Databricks Runtime 18 LTS ML.</td></tr>
+  <tr><td>002</td><td>Authentification de Data Factory vers Databricks : identité managée d'abord, jeton en secours (le secours n'a pas servi).</td></tr>
+  <tr><td>003</td><td>Suites du benchmark : l'option la moins risquée à chaque fois ; ajouts au cahier des charges.</td></tr>
+  <tr><td>004</td><td>Bronze à schéma explicite et <code>FAILFAST</code> ; défauts mesurés.</td></tr>
+  <tr><td>005</td><td>Règles Silver, quarantaine unique, 16 contrôles bloquants et 7 avertissements.</td></tr>
+  <tr><td>006</td><td>Retard au jour près (6,77 %) ; choix du schéma en étoile.</td></tr>
+  <tr><td>007</td><td>Aucune VM utilisable : workspace Premium, calcul serverless uniquement ; coût réel et NAT Gateway.</td></tr>
+  <tr><td>008</td><td>Orchestration Data Factory du job serverless ; pas de copie vers Bronze.</td></tr>
+  <tr><td>009</td><td>Power BI sur SQL warehouse, authentification par jeton.</td></tr>
+  <tr><td>010</td><td>Modèle de retard : features au moment de l'achat, backtest glissant, MLflow, scoring.</td></tr>
+  <tr><td>011</td><td>Intégration continue lint et tests, sans déploiement.</td></tr>
+</table>
+
+<h2>C. Extraits de code</h2>
+<h3>Taux de retard (DAX), même définition que les contrôles SQL</h3>
+<pre>Late Rate % =
+DIVIDE (
+    CALCULATE ( [Orders], fact_orders[order_status] = "delivered", fact_orders[is_late] = TRUE () ),
+    CALCULATE ( [Orders], fact_orders[order_status] = "delivered", NOT ISBLANK ( fact_orders[is_late] ) )
+)</pre>
+<h3>Historique sans fuite (Python)</h3>
+<pre>hist = pd.merge_asof(
+    lines.sort_values("purchase_ts"),                       # one row per order and seller (or route)
+    events[[by, "delivered_ts", "prior_orders", "prior_late"]],
+    left_on="purchase_ts", right_on="delivered_ts", by=by,
+    direction="backward", allow_exact_matches=False,         # only deliveries strictly before the purchase
+)</pre>
+<h3>Contrôles Gold (SQL), quatre familles</h3>
+<pre>-- 1. Volumes : Gold garde chaque ligne Silver
+-- 2. Montants : rien de perdu ni de doublé entre couches et entre les deux faits
+-- 3. Clés : chaque ligne de fait trouve ses dimensions
+-- 4. L'histoire (non-régression) : retard = livré après le jour promis
+--    Une ligne passed = false fait échouer le run.</pre>
+
+<h2>D. Reproduire le projet</h2>
+<p>En local, avec les neuf CSV Kaggle dans <code>data/raw/</code> :</p>
+<pre>docker compose build
+docker compose run --rm dev pytest
+docker compose run --rm dev python -m olist.bronze
+docker compose run --rm dev python -m olist.silver
+docker compose run --rm dev python -m olist.gold
+docker compose run --rm dev python -m olist.ml.train
+docker compose run --rm dev python -m olist.ml.score</pre>
+<p>Sur Azure, le guide <code>AZURE_SETUP.md</code> du dépôt décrit chaque étape (stockage, Unity Catalog, jobs serverless, Data Factory, Power BI, nettoyage), y compris les pièges rencontrés.</p>
+
+<h2>E. Glossaire</h2>
+<table>
+  <tr><td><b>ADLS Gen2</b></td><td>Azure Data Lake Storage, stockage objet avec espace de noms hiérarchique (vrais dossiers).</td></tr>
+  <tr><td><b>Bronze / Silver / Gold</b></td><td>Architecture « médaillon » : source typée, données nettoyées, données prêtes pour le métier.</td></tr>
+  <tr><td><b>Delta Lake</b></td><td>Format de table sur Parquet avec transactions ACID, historique et <code>MERGE</code>.</td></tr>
+  <tr><td><b>Unity Catalog</b></td><td>Gouvernance Databricks : catalogues, droits, accès au stockage, lineage, registre de modèles.</td></tr>
+  <tr><td><b>Serverless</b></td><td>Calcul Databricks géré par Databricks, facturé à l'usage, sans cluster dans l'abonnement.</td></tr>
+  <tr><td><b>Identité managée</b></td><td>Identité Azure attribuée à une ressource, qui reçoit des rôles sans clé ni mot de passe.</td></tr>
+  <tr><td><b>PR-AUC</b></td><td>Aire sous la courbe précision-rappel ; sa valeur de hasard est le taux de positifs.</td></tr>
+  <tr><td><b>Lift</b></td><td>PR-AUC divisée par le taux de positifs : 1 = hasard.</td></tr>
+  <tr><td><b>Backtest glissant</b></td><td>Évaluation répétée où chaque période est prédite par un modèle entraîné sur tout le passé.</td></tr>
+  <tr><td><b>Fuite de données</b></td><td>Utilisation, à l'entraînement, d'une information inconnue au moment de la prédiction.</td></tr>
+</table>
+
+</body>
+</html>

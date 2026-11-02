@@ -45,7 +45,7 @@ flowchart LR
 | ![Power BI : satisfaction](powerbi/screenshots/page3_satisfaction.png) | ![Power BI : prédictions](powerbi/screenshots/page4_predictions.png) |
 | ![ADF : run vert avec scoring](docs/screenshots/phase7_adf_run_with_scoring.png) | ![MLflow : 5 modèles comparés](docs/screenshots/phase7_mlflow_runs.png) |
 
-Autres captures : [Power BI](powerbi/screenshots/) (4 pages, aussi en [PDF](powerbi/Olist.pdf)), [Azure et Databricks](docs/screenshots/).
+Autres captures : [Power BI](powerbi/screenshots/) (4 pages, aussi en [PDF](powerbi/Olist.pdf)), [Azure et Databricks](docs/screenshots/). **Rapport complet (25 pages) : [docs/report/rapport_olist_lakehouse.pdf](docs/report/rapport_olist_lakehouse.pdf).**
 
 ## Ce que le projet montre
 
