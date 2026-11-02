@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Taki-eddine-El-Attari/olist-azure-lakehouse/actions/workflows/ci.yml/badge.svg)](https://github.com/Taki-eddine-El-Attari/olist-azure-lakehouse/actions/workflows/ci.yml)
 
-Pipeline de données de bout en bout sur les **99 441 commandes** du dataset e-commerce brésilien Olist : ingestion orchestrée par **Azure Data Factory**, lakehouse **Bronze / Silver / Gold** en **PySpark + Delta Lake** sur **Azure Databricks** (serverless, Unity Catalog), schéma en étoile et rapport **Power BI**, modèle de prédiction des retards suivi dans **MLflow** et scoré en batch par le pipeline.
+Pipeline de données de bout en bout sur les **99 441 commandes** du dataset e-commerce brésilien Olist ([Kaggle : Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)) : ingestion orchestrée par **Azure Data Factory**, lakehouse **Bronze / Silver / Gold** en **PySpark + Delta Lake** sur **Azure Databricks** (serverless, Unity Catalog), schéma en étoile et rapport **Power BI**, modèle de prédiction des retards suivi dans **MLflow** et scoré en batch par le pipeline.
 
 **Question métier :** les retards de livraison détruisent-ils la satisfaction, où, et peut-on les prédire dès la commande ?
 
@@ -62,7 +62,7 @@ Autres captures : [Power BI](powerbi/screenshots/) (4 pages, aussi en [PDF](powe
 
 ## Reproduire
 
-En local (Docker, versions alignées sur Databricks), avec les 9 CSV Kaggle dans `data/raw/` :
+En local (Docker, versions alignées sur Databricks), avec les 9 CSV du [dataset Kaggle](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) dans `data/raw/` (non versionnés) :
 
 ```bash
 docker compose build
