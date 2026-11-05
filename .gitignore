@@ -7,3 +7,5 @@ spark-warehouse/
 metastore_db/
 derby.log
 mlruns/
+CLAUDE.md
+.claude/
